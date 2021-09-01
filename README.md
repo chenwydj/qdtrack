@@ -1,3 +1,21 @@
+### Commands
+
+**Detection**
+```bash
+CUDA_VISIBLE_DEVICES=2 python tools/test.py configs/bdd100k/qdtrack-frcnn_r50_fpn_12e_bdd100k.py \
+/ssd1/chenwy/dataset/bdd100k/qdtrack-frcnn_r50_fpn_12e_bdd100k-13328aed.pth \
+--eval bbox --show
+````
+
+**Tracking**
+```bash
+CUDA_VISIBLE_DEVICES=2 python tools/test.py configs/bdd100k/qdtrack-frcnn_r50_fpn_12e_bdd100k.py \
+/ssd1/chenwy/dataset/bdd100k/qdtrack-frcnn_r50_fpn_12e_bdd100k-13328aed.pth \
+--eval track --show
+````
+
+
+
 # Quasi-Dense Tracking
 
 [![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/quasi-dense-instance-similarity-learning/multiple-object-tracking-on-bdd100k)](https://paperswithcode.com/sota/multiple-object-tracking-on-bdd100k?p=quasi-dense-instance-similarity-learning)
