@@ -28,6 +28,45 @@ class CocoVideoDataset(CocoDataset):
         self.ref_img_sampler = ref_img_sampler
         super().__init__(*args, **kwargs)
 
+    def __getitem__(self, idx):
+        """Get training/test data after pipeline.
+
+        Args:
+            idx (int): Index of data.
+
+        Returns:
+            dict: Training/test data (with annotation if `test_mode` is set \
+                True).
+        """
+        if self.test_mode:
+            print("===>idx:", idx)
+            print("self.prepare_test_img(idx):", self.prepare_test_img(idx))
+            return self.prepare_test_img(idx)
+        while True:
+            data = self.prepare_train_img(idx)
+            if data is None:
+                idx = self._rand_another(idx)
+                continue
+            return data
+    
+    def prepare_test_img(self, idx):
+        """Get testing data  after pipeline.
+
+        Args:
+            idx (int): Index of data.
+
+        Returns:
+            dict: Testing data after pipeline with new keys introduced by \
+                pipeline.
+        """
+
+        img_info = self.data_infos[idx]
+        results = dict(img_info=img_info)
+        if self.proposals is not None:
+            results['proposals'] = self.proposals[idx]
+        self.pre_pipeline(results)
+        return self.pipeline(results)
+
     def load_annotations(self, ann_file):
         """Load annotation from annotation file."""
         if not self.load_as_video:
