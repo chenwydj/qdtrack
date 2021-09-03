@@ -1,5 +1,9 @@
 import argparse
 import os
+import sys
+from pathlib import Path
+lib_dir = (Path(__file__).parent / '..').resolve()
+sys.path.insert(0, str(lib_dir))
 
 import mmcv
 import torch
