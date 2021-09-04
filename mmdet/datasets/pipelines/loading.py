@@ -11,6 +11,8 @@ try:
     from panopticapi.utils import rgb2id
 except ImportError:
     rgb2id = None
+import random
+random.seed(123)
 
 
 @PIPELINES.register_module()
@@ -36,11 +38,51 @@ class LoadImageFromFile:
     def __init__(self,
                  to_float32=False,
                  color_type='color',
-                 file_client_args=dict(backend='disk')):
+                 file_client_args=dict(backend='disk'), 
+                 grid_h=10,
+                 grid_w=10,
+                 ratio=0.3):
         self.to_float32 = to_float32
         self.color_type = color_type
         self.file_client_args = file_client_args.copy()
         self.file_client = None
+        self.grid_h = grid_h
+        self.grid_w = grid_w
+        self.ratio = ratio
+
+    def randrom_zero(self, image):
+        '''Function to randomly set a patch of an image as zero
+        Args:
+            self.grid_h: number of splitted rows
+            self.gird_w: number of splitted columns
+            self.ratio: probability to set a patch as zero
+        
+        Returns:
+            an image with random zero patches
+
+        '''
+        assert len(image.shape) == 3
+        img_h, img_w, _ = image.shape
+        for idx_h in range(self.grid_h):
+            step_h = img_h // self.grid_h
+            if idx_h < self.grid_h-1:
+                start_h = idx_h * step_h
+                end_h = (idx_h + 1) * step_h
+            else:
+                start_h = idx_h * step_h
+                end_h = img_h
+            
+            for idx_w in range(self.grid_w):
+                step_w = img_w // self.grid_w
+                if idx_w < self.grid_w-1:
+                    start_w = idx_w * step_w
+                    end_w = (idx_w + 1) * step_w
+                else:
+                    start_w = idx_w * step_w
+                    end_w = img_w
+                if random.uniform(0, 1) <= self.ratio:
+                    image[start_h:end_h, start_w:end_w, :] = 0
+        return image
 
     def __call__(self, results):
         """Call functions to load image and get image meta information.
@@ -63,6 +105,8 @@ class LoadImageFromFile:
 
         img_bytes = self.file_client.get(filename)
         img = mmcv.imfrombytes(img_bytes, flag=self.color_type)
+        img = self.randrom_zero(img)
+
         if self.to_float32:
             img = img.astype(np.float32)
 
