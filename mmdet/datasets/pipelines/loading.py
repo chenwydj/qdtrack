@@ -1,7 +1,9 @@
 import os.path as osp
 
+import kornia
 import mmcv
 import numpy as np
+import torch
 import pycocotools.mask as maskUtils
 
 from mmdet.core import BitmapMasks, PolygonMasks
@@ -13,6 +15,8 @@ except ImportError:
     rgb2id = None
 import random
 random.seed(123)
+
+from pdb import set_trace as bp
 
 
 @PIPELINES.register_module()
@@ -38,7 +42,7 @@ class LoadImageFromFile:
     def __init__(self,
                  to_float32=False,
                  color_type='color',
-                 file_client_args=dict(backend='disk'), 
+                 file_client_args=dict(backend='disk'),
                  grid_h=10,
                  grid_w=10,
                  ratio=0.3):
@@ -50,13 +54,68 @@ class LoadImageFromFile:
         self.grid_w = grid_w
         self.ratio = ratio
 
+    def image_complexity(self, input_images, rgb=True):
+        ''' input_images -> np.array of BGR channel order '''
+        input_tensor = torch.Tensor(input_images).permute(2, 0, 1).unsqueeze(0) # NCHW, BGR
+        input_tensor /= 255.
+        if rgb:
+            gray_images = kornia.color.rgb_to_grayscale(input_tensor)
+        else:
+            gray_images = kornia.color.bgr_to_grayscale(input_tensor)
+        sobeled_images = kornia.filters.sobel(gray_images)
+        complexity = sobeled_images.mean(dim=(2,3))
+        complexity = complexity.squeeze()
+        return complexity
+
+    def scan_complexity(self, image):
+        '''Function to randomly set a patch of an image as zero
+        Args:
+            self.grid_h: number of splitted rows
+            self.gird_w: number of splitted columns
+            self.ratio: probability to set a patch as zero
+
+        Returns:
+            an image with random zero patches
+
+        '''
+        areas_sorted = []
+        locations_sorted = []
+        complexities = []
+        assert len(image.shape) == 3
+        img_h, img_w, _ = image.shape
+        start_h = 0
+        while start_h < img_h:
+            end_h = min(img_h, start_h + self.grid_h)
+            start_w = 0
+            while start_w < img_w:
+                end_w = min(img_w, start_w + self.grid_w)
+                complexities.append(self.image_complexity(image[start_h:end_h, start_w:end_w, :], rgb=False))
+                locations_sorted.append([start_h, end_h, start_w, end_w])
+                areas_sorted.append((end_h-start_h)*(end_w-start_w))
+                start_w += self.grid_w
+            start_h += self.grid_h
+        locations_sorted = [x for _, x in sorted(zip(complexities, locations_sorted))]
+        areas_sorted = [x for _, x in sorted(zip(complexities, areas_sorted))]
+        return locations_sorted, areas_sorted
+
+    def complexity_zeros(self, image):
+        img_h, img_w, _ = image.shape
+        locations_sorted, areas_sorted = self.scan_complexity(image)
+        assert sum(areas_sorted) == img_h*img_w, "sum(areas_sorted) = %d v.s. img_h*img_w = %d"%(sum(areas_sorted), img_h*img_w)
+        ratios = np.cumsum(areas_sorted) / (img_h*img_w)
+        threshold = (ratios < self.ratio).sum()
+        for i in range(threshold):
+            start_h, end_h, start_w, end_w = locations_sorted[i]
+            image[start_h:end_h, start_w:end_w, :] = 0
+        return image
+
     def randrom_zero(self, image):
         '''Function to randomly set a patch of an image as zero
         Args:
             self.grid_h: number of splitted rows
             self.gird_w: number of splitted columns
             self.ratio: probability to set a patch as zero
-        
+
         Returns:
             an image with random zero patches
 
@@ -71,7 +130,7 @@ class LoadImageFromFile:
             else:
                 start_h = idx_h * step_h
                 end_h = img_h
-            
+
             for idx_w in range(self.grid_w):
                 step_w = img_w // self.grid_w
                 if idx_w < self.grid_w-1:
@@ -105,7 +164,8 @@ class LoadImageFromFile:
 
         img_bytes = self.file_client.get(filename)
         img = mmcv.imfrombytes(img_bytes, flag=self.color_type)
-        img = self.randrom_zero(img)
+        # img = self.randrom_zero(img)
+        img = self.complexity_zeros(img)
 
         if self.to_float32:
             img = img.astype(np.float32)

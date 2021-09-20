@@ -1,6 +1,7 @@
 lvis
 motmetrics
 numpy
+kornia
 pycocotools
 torch>=1.1
 torchvision
