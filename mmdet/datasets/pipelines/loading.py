@@ -14,6 +14,8 @@ try:
 except ImportError:
     rgb2id = None
 import random
+import cv2
+import copy
 random.seed(123)
 
 from pdb import set_trace as bp
@@ -43,9 +45,10 @@ class LoadImageFromFile:
                  to_float32=False,
                  color_type='color',
                  file_client_args=dict(backend='disk'),
-                 grid_h=10,
-                 grid_w=10,
-                 ratio=0.3):
+                 grid_h=3,
+                 grid_w=3,
+                 ratio=0.0,
+                 debug=False):
         self.to_float32 = to_float32
         self.color_type = color_type
         self.file_client_args = file_client_args.copy()
@@ -53,6 +56,7 @@ class LoadImageFromFile:
         self.grid_h = grid_h
         self.grid_w = grid_w
         self.ratio = ratio
+        self.debug = debug
 
     def image_complexity(self, input_images, rgb=True):
         ''' input_images -> np.array of BGR channel order '''
@@ -164,8 +168,15 @@ class LoadImageFromFile:
 
         img_bytes = self.file_client.get(filename)
         img = mmcv.imfrombytes(img_bytes, flag=self.color_type)
+        if self.debug:
+            img1 = copy.deepcopy(img)
+            cv2.imwrite("test1.png", img1)
         # img = self.randrom_zero(img)
         img = self.complexity_zeros(img)
+        if self.debug:
+            img2 = copy.deepcopy(img)
+            cv2.imwrite("test2.png", img2)
+            assert np.mean(img1) == np.mean(img2)
 
         if self.to_float32:
             img = img.astype(np.float32)
