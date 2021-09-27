@@ -121,3 +121,7 @@ work_dirs/
 *.py~
 *.sh~
 ckpts
+
+#image files
+*.png
+*.jpg
