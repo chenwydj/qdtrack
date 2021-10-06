@@ -13,10 +13,39 @@ from mmcv.parallel import MMDataParallel, MMDistributedDataParallel
 from mmcv.runner import get_dist_info, init_dist, load_checkpoint
 # from mmdet.core import wrap_fp16_model
 from mmdet.datasets import build_dataset
+import torch.nn.utils.prune as prune
+import torch.nn as nn
+
+
+def prune_model_l1_unstructured(model, layer_type, proportion):
+    for module in model.modules():
+        if isinstance(module, layer_type):
+            prune.l1_unstructured(module, 'weight', proportion)
+            prune.remove(module, 'weight')
+    return model
+
+def prune_model_global_unstructured(model, layer_type, proportion):
+    module_tups = []
+    for module in model.modules():
+        if isinstance(module, layer_type):
+            module_tups.append((module, 'weight'))
+
+    prune.global_unstructured(
+        parameters=module_tups, pruning_method=prune.L1Unstructured,
+        amount=proportion
+    )
+    for module, _ in module_tups:
+        prune.remove(module, 'weight')
+    return model
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description='qdtrack test model')
+    parser.add_argument(
+        '--prune', default=0.1, type=float, help='portion of network to be pruned')  # 0.7~
+    parser.add_argument('--prune_method', default='global', type=str,
+                        help="layer-wise / global ",
+                        choices=['layer', 'global'])
     parser.add_argument('config', help='test config file path')
     parser.add_argument('checkpoint', help='checkpoint file')
     parser.add_argument('--out', help='output result file')
@@ -134,6 +163,14 @@ def main():
         model.CLASSES = checkpoint['meta']['CLASSES']
     else:
         model.CLASSES = dataset.CLASSES
+
+    # Pruning
+    if args.prune_method == 'layer':
+        model = prune_model_l1_unstructured(model, nn.Conv1d, args.prune)
+        model = prune_model_l1_unstructured(model, nn.Conv2d, args.prune)
+        model = prune_model_l1_unstructured(model, nn.Conv3d, args.prune)
+    elif args.prune_method == 'global':
+        model = prune_model_global_unstructured(model, (nn.Conv1d, nn.Conv2d, nn.Conv3d), args.prune)
 
     if not distributed:
         model = MMDataParallel(model, device_ids=[0])

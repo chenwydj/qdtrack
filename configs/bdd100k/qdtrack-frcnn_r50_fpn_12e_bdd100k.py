@@ -50,7 +50,7 @@ train_pipeline = [
         ref_prefix='ref'),
 ]
 test_pipeline = [
-    dict(type='LoadImageFromFile', grid_h=20, grid_w=20, ratio=0.2),
+    dict(type='LoadImageFromFile', grid_h=200, grid_w=200, ratio=0.2),
     dict(
         type='MultiScaleFlipAug',
         img_scale=(1296, 720),
