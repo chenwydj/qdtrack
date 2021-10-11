@@ -29,18 +29,38 @@ plt.rcParams.update(params)
 
 
 #############
-# IDF1 = [0.493, 0.519, 0.526, 0.534] #random zero
-IDF1 = [0.703, 0.707, 0.708, 0.709, 0.709, 0.708, 0.707, 0.706, 0.705, 0.703] #complexity zero
-patch = [20, 40, 60, 80, 100, 120, 140, 160, 180, 200]
-fig, ax = plt.subplots(figsize=(9, 7))
-plt.scatter(patch, IDF1)
-plt.title(r"Ratio 0.2", fontsize=20)
+# IDF1_BS = [0.714, 0.712, 0.708, 0.701, 0.687] #complexity zero
+# IDF1_DS2 = [0.58, 0.577, 0.57, 0.557, 0.535]
+# IDF1_DS4 = [0.367, 0.35, 0.326, 0.294, 0.259]
+# ratios = [0.0, 0.1, 0.2, 0.3, 0.4]
+# fig, ax = plt.subplots(figsize=(9, 7))
+# plt.scatter(ratios, IDF1_BS)
+# plt.scatter(ratios, IDF1_DS2)
+# plt.scatter(ratios, IDF1_DS4)
 
+# plt.grid(True)
+# plt.xticks(fontsize=15)
+# plt.yticks(fontsize=15)
+
+# plt.xlabel(r"Ratio", fontsize=18)
+# plt.ylabel(r"IDF1 ($\uparrow$)", fontsize=18)
+# plt.savefig("1.png")
+
+#############
+IDF1_BS = [0.714, 0.712, 0.708, 0.701, 0.687] #complexity zero
+IDF1_DS2 = [0.58, 0.577, 0.57, 0.557, 0.535]
+IDF1_DS4 = [0.367, 0.35, 0.326, 0.294, 0.259]
+ratios = [0.0, 0.1, 0.2, 0.3, 0.4]
+fig, ax = plt.subplots(figsize=(9, 7))
+plt.scatter(ratios, IDF1_BS, label="baseline")
+plt.scatter(ratios, IDF1_DS2, label="H/2, W/2")
+plt.scatter(ratios, IDF1_DS4, label="H/4, W/4")
+
+plt.legend(loc=3)
 plt.grid(True)
 plt.xticks(fontsize=15)
 plt.yticks(fontsize=15)
 
-plt.xlabel(r"Mask Patch Size", fontsize=18)
+plt.xlabel(r"Ratio", fontsize=18)
 plt.ylabel(r"IDF1 ($\uparrow$)", fontsize=18)
-
 plt.savefig("1.png")

@@ -174,8 +174,8 @@ class LoadImageFromFile:
             img1 = copy.deepcopy(img)
             cv2.imwrite("ori.png", img1)
         # img = self.randrom_zero(img)
-        img = self.complexity_zeros(img)
-        
+        # img = self.complexity_zeros(img)
+
         if self.debug:
             img2 = copy.deepcopy(img)
             cv2.imwrite("100_100_0.2_complex.png", img2)

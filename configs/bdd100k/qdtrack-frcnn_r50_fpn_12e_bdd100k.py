@@ -1,4 +1,5 @@
 # model settings
+#  CUDA_VISIBLE_DEVICES=0 python tools/test.py configs/bdd100k/qdtrack-frcnn_r50_fpn_12e_bdd100k.py /ssd1/chenwy/dataset/bdd100k/qdtrack-frcnn_r50_fpn_12e_bdd100k-13328aed.pth  --eval track --prune 0.7 
 _base_ = '../_base_/qdtrack_faster_rcnn_r50_fpn.py'
 model = dict(
     roi_head=dict(bbox_head=dict(num_classes=8)),
@@ -50,12 +51,13 @@ train_pipeline = [
         ref_prefix='ref'),
 ]
 test_pipeline = [
-    dict(type='LoadImageFromFile', grid_h=200, grid_w=200, ratio=0.2),
+    dict(type='LoadImageFromFile', grid_h=60, grid_w=60, ratio=0, debug=False, ds_ratio=None),
     dict(
         type='MultiScaleFlipAug',
-        img_scale=(1296, 720),
+        img_scale=(1296//4, 720//4),
         flip=False,
         transforms=[
+            dict(type='DropPatch', grid_h=60, grid_w=60, ratio=0.4, debug=False),
             dict(type='Resize', keep_ratio=True),
             dict(type='RandomFlip'),
             dict(type='Normalize', **img_norm_cfg),
