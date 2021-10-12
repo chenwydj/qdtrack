@@ -71,7 +71,7 @@ class LoadImageFromFile:
         complexity = complexity.squeeze()
         return complexity
 
-    def scan_complexity(self, image):
+    def scan_complexity(self, image, avgpool=False):
         '''Function to randomly set a patch of an image as zero
         Args:
             self.grid_h: number of splitted rows
@@ -87,6 +87,7 @@ class LoadImageFromFile:
         complexities = []
         assert len(image.shape) == 3
         img_h, img_w, _ = image.shape
+        grid_h, grid_w = int(np.ceil(img_h / self.grid_h)), int(np.ceil(img_w / self.grid_w))
         start_h = 0
         while start_h < img_h:
             end_h = min(img_h, start_h + self.grid_h)
@@ -98,13 +99,20 @@ class LoadImageFromFile:
                 areas_sorted.append((end_h-start_h)*(end_w-start_w))
                 start_w += self.grid_w
             start_h += self.grid_h
+        if avgpool:
+            _complexities = torch.Tensor(complexities).view(grid_h, grid_w).numpy()
+            complexities = np.zeros_like(_complexities)
+            for y in range(grid_h):
+                for x in range(grid_w):
+                    complexities[y, x] = _complexities[max(0, y-1): min(grid_h-1, y+1)+1, max(0, x-1): min(grid_w-1, x+1)+1].mean()
+            complexities = complexities.reshape(-1)
         locations_sorted = [x for _, x in sorted(zip(complexities, locations_sorted))]
         areas_sorted = [x for _, x in sorted(zip(complexities, areas_sorted))]
         return locations_sorted, areas_sorted
 
     def complexity_zeros(self, image):
         img_h, img_w, _ = image.shape
-        locations_sorted, areas_sorted = self.scan_complexity(image)
+        locations_sorted, areas_sorted = self.scan_complexity(image, avgpool=True)
         assert sum(areas_sorted) == img_h*img_w, "sum(areas_sorted) = %d v.s. img_h*img_w = %d"%(sum(areas_sorted), img_h*img_w)
         ratios = np.cumsum(areas_sorted) / (img_h*img_w)
         threshold = (ratios < self.ratio).sum()

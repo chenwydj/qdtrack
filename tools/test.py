@@ -42,7 +42,7 @@ def prune_model_global_unstructured(model, layer_type, proportion):
 def parse_args():
     parser = argparse.ArgumentParser(description='qdtrack test model')
     parser.add_argument(
-        '--prune', default=0.1, type=float, help='portion of network to be pruned')  # 0.7~
+        '--prune', default=0.0, type=float, help='portion of network to be pruned')  # 0.7~
     parser.add_argument('--prune_method', default='global', type=str,
                         help="layer-wise / global ",
                         choices=['layer', 'global'])
