@@ -1,5 +1,4 @@
 # model settings
-#  CUDA_VISIBLE_DEVICES=0 python tools/test.py configs/bdd100k/qdtrack-frcnn_r50_fpn_12e_bdd100k.py /ssd1/chenwy/dataset/bdd100k/qdtrack-frcnn_r50_fpn_12e_bdd100k-13328aed.pth  --eval track --prune 0.7 
 _base_ = '../_base_/qdtrack_faster_rcnn_r50_fpn.py'
 model = dict(
     roi_head=dict(bbox_head=dict(num_classes=8)),
@@ -51,13 +50,13 @@ train_pipeline = [
         ref_prefix='ref'),
 ]
 test_pipeline = [
-    dict(type='LoadImageFromFile', grid_h=60, grid_w=60, ratio=0, debug=False, ds_ratio=None),
+    dict(type='LoadImageFromFile'),
     dict(
         type='MultiScaleFlipAug',
-        img_scale=(1296//4, 720//4),
+        img_scale=(1296, 720),
         flip=False,
         transforms=[
-            dict(type='DropPatch', grid_h=60, grid_w=60, ratio=0.4, debug=False),
+            dict(type='DropPatch', grid_h=60, grid_w=60, ratio=0.4, debug=False, avg_pool=True),
             dict(type='Resize', keep_ratio=True),
             dict(type='RandomFlip'),
             dict(type='Normalize', **img_norm_cfg),
@@ -67,8 +66,8 @@ test_pipeline = [
         ])
 ]
 data = dict(
-    samples_per_gpu=2,
-    workers_per_gpu=2,
+    samples_per_gpu=48,
+    workers_per_gpu=12,
     train=[
         dict(
             type=dataset_type,
@@ -116,10 +115,12 @@ log_config = dict(
     ])
 # yapf:enable
 # runtime settings
-total_epochs = 12
+total_epochs = 24
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-load_from = None
-resume_from = None
+# load_from = None
+# resume_from = None
+# resume_from = "/ssd1/chenwy/dataset/bdd100k/qdtrack-frcnn_r50_fpn_12e_bdd100k-13328aed.pth"
+resume_from = "/home/zhiwen/projects/qdtrack/work_dirs/qdtrack-frcnn_r50_fpn_12e_bdd100k/epoch_14.pth"
 workflow = [('train', 1)]
 evaluation = dict(metric=['bbox', 'track'], interval=2)

@@ -47,14 +47,25 @@ plt.rcParams.update(params)
 # plt.savefig("1.png")
 
 #############
-IDF1_BS = [0.714, 0.712, 0.708, 0.701, 0.687] #complexity zero
-IDF1_DS2 = [0.58, 0.577, 0.57, 0.557, 0.535]
-IDF1_DS4 = [0.367, 0.35, 0.326, 0.294, 0.259]
+# IDF1_BS = [0.714, 0.712, 0.708, 0.701, 0.687] #no finetune 
+# IDF1_DS2 = [0.58, 0.577, 0.57, 0.557, 0.535]
+# IDF1_DS4 = [0.367, 0.35, 0.326, 0.294, 0.259]
+
+IDF1_BS = [0.714, 0.712, 0.708, 0.701, 0.687] #with finetune 
+IDF1_DS2 = [0.617, 0.614, 0.609, 0.598, 0.581]
+# IDF1_DS4 = [0.433, 0.425, 0.413, 0.396, 0.369]
+
+# IDF1_BS = [0.714, 0.712, 0.708, 0.701, 0.687] #with finetune 
+# IDF1_DS2 = [0.633, 0.63, 0.624, 0.613, 0.595]
+# IDF1_DS4 = [0.433, 0.425, 0.413, 0.396, 0.369]
+
 ratios = [0.0, 0.1, 0.2, 0.3, 0.4]
 fig, ax = plt.subplots(figsize=(9, 7))
 plt.scatter(ratios, IDF1_BS, label="baseline")
 plt.scatter(ratios, IDF1_DS2, label="H/2, W/2")
-plt.scatter(ratios, IDF1_DS4, label="H/4, W/4")
+# plt.scatter(ratios, IDF1_DS4, label="H/4, W/4")
+
+plt.ylim(0.2, 0.72)
 
 plt.legend(loc=3)
 plt.grid(True)
@@ -62,5 +73,5 @@ plt.xticks(fontsize=15)
 plt.yticks(fontsize=15)
 
 plt.xlabel(r"Ratio", fontsize=18)
-plt.ylabel(r"IDF1 ($\uparrow$)", fontsize=18)
-plt.savefig("1.png")
+plt.ylabel(r"IDF1 ($\uparrow$) (without finetune)", fontsize=18)
+plt.savefig("2.png")
