@@ -654,7 +654,6 @@ class Pad:
         return repr_str
 
 
-
 @PIPELINES.register_module()
 class DropPatch:
 
@@ -683,44 +682,6 @@ class DropPatch:
         complexity = complexity.squeeze()
         return complexity
 
-    # def scan_complexity(self, image, avgpool=False):
-    #     '''Function to randomly set a patch of an image as zero
-    #     Args:
-    #         self.grid_h: number of splitted rows
-    #         self.gird_w: number of splitted columns
-    #         self.ratio: probability to set a patch as zero
-
-    #     Returns:
-    #         an image with random zero patches
-
-    #     '''
-    #     areas_sorted = []
-    #     locations_sorted = []
-    #     complexities = []
-    #     assert len(image.shape) == 3
-    #     img_h, img_w, _ = image.shape
-    #     grid_h, grid_w = int(np.ceil(img_h / self.grid_h)), int(np.ceil(img_w / self.grid_w))
-    #     start_h = 0
-    #     while start_h < img_h:
-    #         end_h = min(img_h, start_h + self.grid_h)
-    #         start_w = 0
-    #         while start_w < img_w:
-    #             end_w = min(img_w, start_w + self.grid_w)
-    #             complexities.append(self.image_complexity(image[start_h:end_h, start_w:end_w, :], rgb=False))
-    #             locations_sorted.append([start_h, end_h, start_w, end_w])
-    #             areas_sorted.append((end_h-start_h)*(end_w-start_w))
-    #             start_w += self.grid_w
-    #         start_h += self.grid_h
-    #     if avgpool:
-    #         _complexities = torch.Tensor(complexities).view(grid_h, grid_w).numpy()
-    #         complexities = np.zeros_like(_complexities)
-    #         for y in range(grid_h): #TODO is the self.grid_h the same meaning with wuyang?
-    #             for x in range(grid_w):
-    #                 complexities[y, x] = _complexities[max(0, y-1): min(grid_h-1, y+1)+1, max(0, x-1): min(grid_w-1, x+1)+1].mean()
-    #         complexities = complexities.reshape(-1)
-    #     locations_sorted = [x for _, x in sorted(zip(complexities, locations_sorted))]
-    #     areas_sorted = [x for _, x in sorted(zip(complexities, areas_sorted))]
-    #     return locations_sorted, areas_sorted
     def scan_complexity(self, image, avgpool=False):
         '''Function to randomly set a patch of an image as zero
         Args:

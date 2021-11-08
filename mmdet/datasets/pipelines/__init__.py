@@ -11,14 +11,14 @@ from .test_time_aug import MultiScaleFlipAug
 from .transforms import (Albu, CutOut, Expand, MinIoURandomCrop, MixUp, Mosaic,
                          Normalize, Pad, PhotoMetricDistortion, RandomAffine,
                          RandomCenterCropPad, RandomCrop, RandomFlip,
-                         RandomShift, Resize, SegRescale)
+                         RandomShift, Resize, SegRescale, DropPatch)
 
 __all__ = [
     'Compose', 'to_tensor', 'ToTensor', 'ImageToTensor', 'ToDataContainer',
     'Transpose', 'Collect', 'DefaultFormatBundle', 'LoadAnnotations',
     'LoadImageFromFile', 'LoadImageFromWebcam',
     'LoadMultiChannelImageFromFiles', 'LoadProposals', 'MultiScaleFlipAug',
-    'Resize', 'RandomFlip', 'Pad', 'RandomCrop', 'Normalize', 'SegRescale',
+    'Resize', 'DropPatch', 'RandomFlip', 'Pad', 'RandomCrop', 'Normalize', 'SegRescale',
     'MinIoURandomCrop', 'Expand', 'PhotoMetricDistortion', 'Albu',
     'InstaBoost', 'RandomCenterCropPad', 'AutoAugment', 'CutOut', 'Shear',
     'Rotate', 'ColorTransform', 'EqualizeTransform', 'BrightnessTransform',
