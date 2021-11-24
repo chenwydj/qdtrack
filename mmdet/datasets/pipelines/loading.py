@@ -119,6 +119,7 @@ class LoadImageFromFile:
         for i in range(threshold):
             start_h, end_h, start_w, end_w = locations_sorted[i]
             image[start_h:end_h, start_w:end_w, :] = 0
+        bp()
         return image
 
     def randrom_zero(self, image):

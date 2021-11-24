@@ -1,5 +1,8 @@
 ### Commands
 
+**Extra Installation**
+`pip install grad-cam ttach`
+
 **Detection**
 ```bash
 CUDA_VISIBLE_DEVICES=2 python tools/test.py configs/bdd100k/qdtrack-frcnn_r50_fpn_12e_bdd100k.py \
