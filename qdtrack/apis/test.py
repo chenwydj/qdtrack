@@ -180,7 +180,14 @@ def single_gpu_test(model,
 
         # data = drop_by_bbox(data, result) # drop by bbox predicted from t-1 frame
         bp()
-        apply_dropping(data, result, locations_pre=data['img_metas']['locations'], areas_pre=data['img_metas']['areas'], complexity_pre=data['img_metas']['complexities'], grid_h=data['img_metas']['grid_h'], grid_w=data['img_metas']['grid_w'], ratio=data['img_metas']['ratio'])
+        apply_dropping(data, result,
+            locations_pre=data['img_metas'][0].data[0][0]['drop_info']['locations'],
+            areas_pre=data['img_metas'][0].data[0][0]['drop_info']['areas'],
+            complexity_pre=data['img_metas'][0].data[0][0]['drop_info']['complexities'],
+            grid_h=data['img_metas'][0].data[0][0]['drop_info']['meta']['grid_h'],
+            grid_w=data['img_metas'][0].data[0][0]['drop_info']['meta']['grid_w'],
+            ratio=data['img_metas'][0].data[0][0]['drop_info']['meta']['ratio']
+        )
 
         with torch.no_grad():
             result = model(return_loss=False, rescale=True, **data)
