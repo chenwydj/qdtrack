@@ -144,7 +144,7 @@ def apply_dropping(data, results, locations_pre=None, areas_pre=None, complexity
             for area, area_pre in zip(areas, areas_pre):
                 assert area == area_pre
     else:
-        assert locations_pre and areas_pre and complexity_pre
+        assert (locations_pre is not None) and (areas_pre is not None) and (complexity_pre is not None)
         locations = locations_pre
         areas = areas_pre
     complexities_merged = merge_complexities(complexities=complexities, complexities_pre=complexity_pre)
