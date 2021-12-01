@@ -749,7 +749,7 @@ class DropPatch:
             self.complexity_zeros(results)
         else:
             drop_info = dict()
-            drop_info["meta"] = {}
+            drop_info["meta"] = {"grid_w": self.grid_w, "grid_h": self.grid_h, "ratio":self.ratio}
             drop_info["locations"] = list()
             drop_info["areas"] = list()
             drop_info["complexities"] = list()
