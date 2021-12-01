@@ -719,6 +719,7 @@ class DropPatch:
                 for x in range(grid_w):
                     complexities[y, x] = _complexities[max(0, y-1): min(grid_h-1, y+1)+1, max(0, x-1): min(grid_w-1, x+1)+1].mean()
             complexities = complexities.reshape(-1)
+        from pdb import set_trace as bp
         bp()
         locations_sorted = [x for _, x in sorted(zip(complexities, locations))]
         areas_sorted = [x for _, x in sorted(zip(complexities, areas))]
