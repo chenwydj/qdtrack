@@ -117,16 +117,16 @@ def single_gpu_test(model,
                     show_score_thr=0.3):
     model.eval()
 
-    features_collector0 = Features()
-    features_collector1 = Features()
-    features_collector2 = Features()
-    features_collector3 = Features()
-    features_collector4 = Features()
-    model.module.backbone.conv1.register_forward_hook(features_collector0)
-    model.module.backbone.layer1[-1].register_forward_hook(features_collector1)
-    model.module.backbone.layer2[-1].register_forward_hook(features_collector2)
-    model.module.backbone.layer3[-1].register_forward_hook(features_collector3)
-    model.module.backbone.layer4[-1].register_forward_hook(features_collector4)
+    # features_collector0 = Features()
+    # features_collector1 = Features()
+    # features_collector2 = Features()
+    # features_collector3 = Features()
+    # features_collector4 = Features()
+    # model.module.backbone.conv1.register_forward_hook(features_collector0)
+    # model.module.backbone.layer1[-1].register_forward_hook(features_collector1)
+    # model.module.backbone.layer2[-1].register_forward_hook(features_collector2)
+    # model.module.backbone.layer3[-1].register_forward_hook(features_collector3)
+    # model.module.backbone.layer4[-1].register_forward_hook(features_collector4)
 
     result = defaultdict(list) # output of each step
     results = defaultdict(list)
@@ -138,7 +138,6 @@ def single_gpu_test(model,
 
         with torch.no_grad():
             result = model(return_loss=False, rescale=True, **data)
-            bp()
 
         # n, c, h, w = features_collector.outputs[-1].shape
         # attention = torch.einsum('nchw,nc->nhw', [features_collector.outputs[-1], nn.functional.adaptive_avg_pool2d(features_collector.outputs[-1], (1, 1)).view(1, c)])
