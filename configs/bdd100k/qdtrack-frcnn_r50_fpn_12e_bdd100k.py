@@ -56,11 +56,11 @@ test_pipeline = [
         img_scale=(1296, 720),
         flip=False,
         transforms=[
-            dict(type='DropPatch', grid_h=60, grid_w=60, ratio=0.4, debug=False, avg_pool=True, true_drop=False),
             dict(type='Resize', keep_ratio=True),
             dict(type='RandomFlip'),
-            dict(type='Normalize', **img_norm_cfg),
             dict(type='Pad', size_divisor=32),
+            dict(type='DropPatch', grid_h=60, grid_w=60, ratio=0.4, debug=False, avg_pool=True, true_drop=False),
+            dict(type='Normalize', **img_norm_cfg),
             dict(type='ImageToTensor', keys=['img']),
             dict(type='VideoCollect', keys=['img'])
         ])
