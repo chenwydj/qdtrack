@@ -117,8 +117,7 @@ def drop_by_bbox(data, results, grid_h=GRID_H, grid_w=GRID_W, ratio=RATIO):
 
 
 def merge_complexities(complexities=None, complexities_pre=None):
-    complexities_pre
-    return
+    return complexities_pre
 
 
 def apply_dropping(data, results, locations_pre=None, areas_pre=None, complexity_pre=None, grid_h=GRID_H, grid_w=GRID_W, ratio=RATIO):
