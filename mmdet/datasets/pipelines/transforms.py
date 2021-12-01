@@ -699,7 +699,8 @@ class DropPatch:
         complexities = []
         assert len(image.shape) == 3
         img_h, img_w, _ = image.shape
-        # grid_h, grid_w = int(np.ceil(img_h / self.grid_h)), int(np.ceil(img_w / self.grid_w))
+        bp()
+        grid_h, grid_w = int(np.ceil(img_h / self.grid_h)), int(np.ceil(img_w / self.grid_w)) # for avg_pool, number of grids, not height/width
         start_h = 0
         while start_h < img_h:
             end_h = min(img_h, start_h + self.grid_h)
@@ -718,6 +719,7 @@ class DropPatch:
                 for x in range(grid_w):
                     complexities[y, x] = _complexities[max(0, y-1): min(grid_h-1, y+1)+1, max(0, x-1): min(grid_w-1, x+1)+1].mean()
             complexities = complexities.reshape(-1)
+        bp()
         locations_sorted = [x for _, x in sorted(zip(complexities, locations))]
         areas_sorted = [x for _, x in sorted(zip(complexities, areas))]
         return locations_sorted, areas_sorted, locations, areas, complexities
