@@ -134,7 +134,6 @@ def apply_dropping(data, results, locations_pre=None, areas_pre=None, complexity
     if len(results) > 0:
         bboxes = summarize_bbox(results["bbox_results"])
         _, _, locations, areas, complexities = scan_complexity(img, bboxes, grid_h, grid_w)
-        bp()
         assert sum(areas) == img_h*img_w, "sum(areas_sorted) = %d v.s. img_h*img_w = %d"%(sum(areas), img_h*img_w)
         if locations_pre:
             for loc, loc_pre in zip(locations, locations_pre):
@@ -146,7 +145,6 @@ def apply_dropping(data, results, locations_pre=None, areas_pre=None, complexity
         assert (locations_pre is not None) and (areas_pre is not None) and (complexity_pre is not None)
         locations = locations_pre
         areas = areas_pre
-    bp()
     complexities_merged = merge_complexities(complexities=complexities, complexities_pre=complexity_pre)
     locations_sorted = [x for _, x in sorted(zip(complexities_merged, locations))]
     areas_sorted = [x for _, x in sorted(zip(complexities_merged, areas))]
