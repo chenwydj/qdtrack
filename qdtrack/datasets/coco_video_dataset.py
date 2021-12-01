@@ -1,3 +1,4 @@
+import pdb
 import mmcv
 import numpy as np
 import random
@@ -265,6 +266,7 @@ class CocoVideoDataset(CocoDataset):
 
         eval_results = dict()
         if 'track' in metrics:
+            # self.data_infos = self.data_infos[:5]
             assert len(self.data_infos) == len(results['track_results'])
             inds = [
                 i for i, _ in enumerate(self.data_infos) if _['frame_id'] == 0
