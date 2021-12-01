@@ -136,9 +136,11 @@ def apply_dropping(data, results, locations_pre=None, areas_pre=None, complexity
         _, _, locations, areas, complexities = scan_complexity(img, bboxes, grid_h, grid_w)
         assert sum(areas) == img_h*img_w, "sum(areas_sorted) = %d v.s. img_h*img_w = %d"%(sum(areas), img_h*img_w)
         if locations_pre:
+            assert len(locations) == len(locations_pre)
             for loc, loc_pre in zip(locations, locations_pre):
                 assert loc == loc_pre
         if areas_pre:
+            assert len(areas) == len(areas_pre)
             for area, area_pre in zip(areas, areas_pre):
                 assert area == area_pre
     else:
