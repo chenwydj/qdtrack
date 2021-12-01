@@ -82,8 +82,8 @@ class LoadImageFromFile:
             an image with random zero patches
 
         '''
-        areas_sorted = []
-        locations_sorted = []
+        areas = []
+        locations = []
         complexities = []
         assert len(image.shape) == 3
         img_h, img_w, _ = image.shape
@@ -95,8 +95,8 @@ class LoadImageFromFile:
             while start_w < img_w:
                 end_w = min(img_w, start_w + self.grid_w)
                 complexities.append(self.image_complexity(image[start_h:end_h, start_w:end_w, :], rgb=False))
-                locations_sorted.append([start_h, end_h, start_w, end_w])
-                areas_sorted.append((end_h-start_h)*(end_w-start_w))
+                locations.append([start_h, end_h, start_w, end_w])
+                areas.append((end_h-start_h)*(end_w-start_w))
                 start_w += self.grid_w
             start_h += self.grid_h
         if avgpool:
@@ -106,13 +106,13 @@ class LoadImageFromFile:
                 for x in range(grid_w):
                     complexities[y, x] = _complexities[max(0, y-1): min(grid_h-1, y+1)+1, max(0, x-1): min(grid_w-1, x+1)+1].mean()
             complexities = complexities.reshape(-1)
-        locations_sorted = [x for _, x in sorted(zip(complexities, locations_sorted))]
-        areas_sorted = [x for _, x in sorted(zip(complexities, areas_sorted))]
-        return locations_sorted, areas_sorted
+        locations_sorted = [x for _, x in sorted(zip(complexities, locations))]
+        areas_sorted = [x for _, x in sorted(zip(complexities, areas))]
+        return locations_sorted, areas_sorted, locations, areas, complexities
 
     def complexity_zeros(self, image):
         img_h, img_w, _ = image.shape
-        locations_sorted, areas_sorted = self.scan_complexity(image, avgpool=True)
+        locations_sorted, areas_sorted, locations, areas, complexities = self.scan_complexity(image, avgpool=True)
         assert sum(areas_sorted) == img_h*img_w, "sum(areas_sorted) = %d v.s. img_h*img_w = %d"%(sum(areas_sorted), img_h*img_w)
         ratios = np.cumsum(areas_sorted) / (img_h*img_w)
         threshold = (ratios < self.ratio).sum()
