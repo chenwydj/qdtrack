@@ -16,6 +16,8 @@ from mmdet.datasets import build_dataset
 import torch.nn.utils.prune as prune
 import torch.nn as nn
 
+from pdb import set_trace as bp
+
 
 def prune_model_l1_unstructured(model, layer_type, proportion):
     for module in model.modules():

@@ -82,8 +82,8 @@ class LoadImageFromFile:
             an image with random zero patches
 
         '''
-        areas_sorted = []
-        locations_sorted = []
+        areas = []
+        locations = []
         complexities = []
         assert len(image.shape) == 3
         img_h, img_w, _ = image.shape
@@ -95,8 +95,8 @@ class LoadImageFromFile:
             while start_w < img_w:
                 end_w = min(img_w, start_w + self.grid_w)
                 complexities.append(self.image_complexity(image[start_h:end_h, start_w:end_w, :], rgb=False))
-                locations_sorted.append([start_h, end_h, start_w, end_w])
-                areas_sorted.append((end_h-start_h)*(end_w-start_w))
+                locations.append([start_h, end_h, start_w, end_w])
+                areas.append((end_h-start_h)*(end_w-start_w))
                 start_w += self.grid_w
             start_h += self.grid_h
         if avgpool:
@@ -106,13 +106,13 @@ class LoadImageFromFile:
                 for x in range(grid_w):
                     complexities[y, x] = _complexities[max(0, y-1): min(grid_h-1, y+1)+1, max(0, x-1): min(grid_w-1, x+1)+1].mean()
             complexities = complexities.reshape(-1)
-        locations_sorted = [x for _, x in sorted(zip(complexities, locations_sorted))]
-        areas_sorted = [x for _, x in sorted(zip(complexities, areas_sorted))]
-        return locations_sorted, areas_sorted
+        locations_sorted = [x for _, x in sorted(zip(complexities, locations))]
+        areas_sorted = [x for _, x in sorted(zip(complexities, areas))]
+        return locations_sorted, areas_sorted, locations, areas, complexities
 
     def complexity_zeros(self, image):
         img_h, img_w, _ = image.shape
-        locations_sorted, areas_sorted = self.scan_complexity(image, avgpool=True)
+        locations_sorted, areas_sorted, locations, areas, complexities = self.scan_complexity(image, avgpool=True)
         assert sum(areas_sorted) == img_h*img_w, "sum(areas_sorted) = %d v.s. img_h*img_w = %d"%(sum(areas_sorted), img_h*img_w)
         ratios = np.cumsum(areas_sorted) / (img_h*img_w)
         threshold = (ratios < self.ratio).sum()
@@ -134,22 +134,24 @@ class LoadImageFromFile:
         '''
         assert len(image.shape) == 3
         img_h, img_w, _ = image.shape
-        for idx_h in range(self.grid_h):
-            step_h = img_h // self.grid_h
-            if idx_h < self.grid_h-1:
-                start_h = idx_h * step_h
-                end_h = (idx_h + 1) * step_h
+        num_grid_h = (img_h // self.grid_h) + 1
+        num_grid_w = (img_w // self.grid_w) + 1
+        for idx_h in range(num_grid_h):
+            # step_h = img_h // self.grid_h
+            if idx_h < num_grid_h-1:
+                start_h = idx_h * self.grid_h
+                end_h = (idx_h + 1) * self.grid_h
             else:
-                start_h = idx_h * step_h
+                start_h = idx_h * self.grid_h
                 end_h = img_h
 
-            for idx_w in range(self.grid_w):
-                step_w = img_w // self.grid_w
-                if idx_w < self.grid_w-1:
-                    start_w = idx_w * step_w
-                    end_w = (idx_w + 1) * step_w
+            for idx_w in range(num_grid_w):
+                # step_w = img_w // self.grid_w
+                if idx_w < num_grid_w-1:
+                    start_w = idx_w * self.grid_w
+                    end_w = (idx_w + 1) * self.grid_w
                 else:
-                    start_w = idx_w * step_w
+                    start_w = idx_w * self.grid_w
                     end_w = img_w
                 if random.uniform(0, 1) <= self.ratio:
                     image[start_h:end_h, start_w:end_w, :] = 0
@@ -178,13 +180,15 @@ class LoadImageFromFile:
         img = mmcv.imfrombytes(img_bytes, flag=self.color_type)
         if self.debug:
             img1 = copy.deepcopy(img)
-            cv2.imwrite("test1.png", img1)
+            cv2.imwrite("ori.png", img1)
         # img = self.randrom_zero(img)
-        img = self.complexity_zeros(img)
+        # img = self.complexity_zeros(img)
+
         if self.debug:
             img2 = copy.deepcopy(img)
-            cv2.imwrite("test2.png", img2)
+            cv2.imwrite("100_100_0.2_complex.png", img2)
             assert np.mean(img1) == np.mean(img2)
+            exit(0)
 
         if self.to_float32:
             img = img.astype(np.float32)

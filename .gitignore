@@ -2,10 +2,12 @@
 __pycache__/
 *.py[cod]
 *$py.class
+*.npy
 
 # C extensions
 *.so
-
+*.zip 
+*.zip*
 # Distribution / packaging
 .Python
 build/
@@ -121,3 +123,7 @@ work_dirs/
 *.py~
 *.sh~
 ckpts
+
+#image files
+*.png
+*.jpg

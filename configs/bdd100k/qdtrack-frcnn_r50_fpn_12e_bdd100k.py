@@ -50,12 +50,13 @@ train_pipeline = [
         ref_prefix='ref'),
 ]
 test_pipeline = [
-    dict(type='LoadImageFromFile', grid_h=100, grid_w=100, ratio=0.5),
+    dict(type='LoadImageFromFile'),
     dict(
         type='MultiScaleFlipAug',
         img_scale=(1296, 720),
         flip=False,
         transforms=[
+            dict(type='DropPatch', grid_h=60, grid_w=60, ratio=0.4, debug=False, avg_pool=True, true_drop=False),
             dict(type='Resize', keep_ratio=True),
             dict(type='RandomFlip'),
             dict(type='Normalize', **img_norm_cfg),
@@ -65,8 +66,8 @@ test_pipeline = [
         ])
 ]
 data = dict(
-    samples_per_gpu=2,
-    workers_per_gpu=2,
+    samples_per_gpu=48,
+    workers_per_gpu=12,
     train=[
         dict(
             type=dataset_type,
@@ -114,10 +115,12 @@ log_config = dict(
     ])
 # yapf:enable
 # runtime settings
-total_epochs = 12
+total_epochs = 24
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-load_from = None
-resume_from = None
+# load_from = None
+# resume_from = None
+# resume_from = "/ssd1/chenwy/dataset/bdd100k/qdtrack-frcnn_r50_fpn_12e_bdd100k-13328aed.pth"
+resume_from = "/home/zhiwen/projects/qdtrack/work_dirs/qdtrack-frcnn_r50_fpn_12e_bdd100k/epoch_14.pth"
 workflow = [('train', 1)]
 evaluation = dict(metric=['bbox', 'track'], interval=2)

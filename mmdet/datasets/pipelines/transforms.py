@@ -23,6 +23,9 @@ except ImportError:
     albumentations = None
     Compose = None
 
+import kornia
+import torch
+import copy
 
 @PIPELINES.register_module()
 class Resize:
@@ -300,7 +303,7 @@ class Resize:
                 if 'scale_factor' in results:
                     results.pop('scale_factor')
                 self._random_scale(results)
-
+        
         self._resize_img(results)
         self._resize_bboxes(results)
         self._resize_masks(results)
@@ -649,6 +652,107 @@ class Pad:
         repr_str += f'size_divisor={self.size_divisor}, '
         repr_str += f'pad_to_square={self.pad_to_square}, '
         repr_str += f'pad_val={self.pad_val})'
+        return repr_str
+
+
+@PIPELINES.register_module()
+class DropPatch:
+
+    def __init__(self,
+                 grid_h=3,
+                 grid_w=3,
+                 ratio=0.0,
+                 avg_pool=False,
+                 debug=False, 
+                 true_drop=False):
+        self.grid_h = grid_h
+        self.grid_w = grid_w
+        self.ratio = ratio
+        self.debug = debug
+        self.avg_pool = avg_pool
+        self.true_drop = true_drop
+
+    def image_complexity(self, input_images, rgb=True):
+        ''' input_images -> np.array of BGR channel order '''
+        input_tensor = torch.Tensor(input_images).permute(2, 0, 1).unsqueeze(0) # NCHW, BGR
+        input_tensor /= 255.
+        if rgb:
+            gray_images = kornia.color.rgb_to_grayscale(input_tensor)
+        else:
+            gray_images = kornia.color.bgr_to_grayscale(input_tensor)
+        sobeled_images = kornia.filters.sobel(gray_images)
+        complexity = sobeled_images.mean(dim=(2,3))
+        complexity = complexity.squeeze()
+        return complexity
+
+    def scan_complexity(self, image, avgpool=False):
+        '''Function to randomly set a patch of an image as zero
+        Args:
+            self.grid_h: number of splitted rows
+            self.gird_w: number of splitted columns
+            self.ratio: probability to set a patch as zero
+        Returns:
+            an image with random zero patches
+        '''
+        areas = []
+        locations = []
+        complexities = []
+        assert len(image.shape) == 3
+        img_h, img_w, _ = image.shape
+        grid_h, grid_w = int(np.ceil(img_h / self.grid_h)), int(np.ceil(img_w / self.grid_w))
+        start_h = 0
+        while start_h < img_h:
+            end_h = min(img_h, start_h + self.grid_h)
+            start_w = 0
+            while start_w < img_w:
+                end_w = min(img_w, start_w + self.grid_w)
+                complexities.append(self.image_complexity(image[start_h:end_h, start_w:end_w, :], rgb=False))
+                locations.append([start_h, end_h, start_w, end_w])
+                areas.append((end_h-start_h)*(end_w-start_w))
+                start_w += self.grid_w
+            start_h += self.grid_h
+        if avgpool:
+            _complexities = torch.Tensor(complexities).view(grid_h, grid_w).numpy()
+            complexities = np.zeros_like(_complexities)
+            for y in range(grid_h):
+                for x in range(grid_w):
+                    complexities[y, x] = _complexities[max(0, y-1): min(grid_h-1, y+1)+1, max(0, x-1): min(grid_w-1, x+1)+1].mean()
+            complexities = complexities.reshape(-1)
+        locations_sorted = [x for _, x in sorted(zip(complexities, locations))]
+        areas_sorted = [x for _, x in sorted(zip(complexities, areas))]
+        return locations_sorted, areas_sorted, locations, areas, complexities
+
+    def complexity_zeros(self, results, avgpool=False):
+        for key in results.get('img_fields', ['img']):
+            image = copy.deepcopy(results[key])
+        img_h, img_w, _ = image.shape
+        locations_sorted, areas_sorted, locations, areas, complexities = self.scan_complexity(image, avgpool=True)
+        assert sum(areas_sorted) == img_h*img_w, "sum(areas_sorted) = %d v.s. img_h*img_w = %d"%(sum(areas_sorted), img_h*img_w)
+        ratios = np.cumsum(areas_sorted) / (img_h*img_w)
+        threshold = (ratios < self.ratio).sum()
+        drop_info = dict()
+        drop_info["meta"] = {"grid_w": self.grid_w, "grid_h": self.grid_h, "ratio":self.ratio}
+        drop_info["locations"] = locations
+        drop_info["areas"] = areas
+        drop_info["complexities"] = complexities
+
+        for i in range(threshold):
+            start_h, end_h, start_w, end_w = locations_sorted[i]
+            image[start_h:end_h, start_w:end_w, :] = 0
+        if self.true_drop:
+            results[key] = image
+        results["drop_info"] = drop_info
+
+    def __call__(self, results):
+        
+        if self.ratio > 0 + 1e-4:
+            self.complexity_zeros(results)
+        # cv2.imwrite("dropped.png", results['img'])
+        return results
+
+    def __repr__(self):
+        repr_str = self.__class__.__name__
+        repr_str += f'drop_ratio={self.ratio}, '
         return repr_str
 
 
