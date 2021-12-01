@@ -699,7 +699,7 @@ class DropPatch:
         complexities = []
         assert len(image.shape) == 3
         img_h, img_w, _ = image.shape
-        grid_h, grid_w = int(np.ceil(img_h / self.grid_h)), int(np.ceil(img_w / self.grid_w))
+        # grid_h, grid_w = int(np.ceil(img_h / self.grid_h)), int(np.ceil(img_w / self.grid_w))
         start_h = 0
         while start_h < img_h:
             end_h = min(img_h, start_h + self.grid_h)
