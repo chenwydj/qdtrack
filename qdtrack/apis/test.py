@@ -147,6 +147,7 @@ def apply_dropping(data, results, locations_pre=None, areas_pre=None, complexity
         assert (locations_pre is not None) and (areas_pre is not None) and (complexity_pre is not None)
         locations = locations_pre
         areas = areas_pre
+    bp()
     complexities_merged = merge_complexities(complexities=complexities, complexities_pre=complexity_pre)
     locations_sorted = [x for _, x in sorted(zip(complexities_merged, locations))]
     areas_sorted = [x for _, x in sorted(zip(complexities_merged, areas))]
