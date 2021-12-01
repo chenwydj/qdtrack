@@ -6,6 +6,7 @@ from collections import defaultdict
 
 import numpy as np
 import mmcv
+from mmdet.models.builder import BACKBONES
 import torch
 from torch import nn
 import torch.distributed as dist
@@ -32,6 +33,7 @@ inv_normalizer = transforms.Normalize(
     mean=[-0.485/0.229, -0.456/0.224, -0.406/0.225],
     std=[1/0.229, 1/0.224, 1/0.225]
 )
+BACKGROUND = -2.1179
 
 
 THRESHOLD = 0.01 # detection confidence
@@ -46,10 +48,11 @@ def box_iou(loc, bboxes):
         area += rect_target.intersection(rect).area
     return area
 
+
 # detection prediction from frame t-1 as complexity
 def scan_complexity(image, bboxes, grid_h, grid_w):
-    areas_sorted = []
-    locations_sorted = []
+    areas = []
+    locations = []
     complexities = []
     assert len(image.shape) == 4
     img_h, img_w = image.shape[2:]
@@ -64,24 +67,26 @@ def scan_complexity(image, bboxes, grid_h, grid_w):
             complexities.append(box_iou([start_w, start_h, end_w, end_h], bboxes))
             # complexities.append(box_iou([start_h, start_w, end_h, end_w], bboxes))
             # complexities.append(box_iou([start_w, end_h, end_w, start_h], bboxes))
-            locations_sorted.append([start_h, end_h, start_w, end_w])
-            areas_sorted.append((end_h-start_h)*(end_w-start_w))
+            locations.append([start_h, end_h, start_w, end_w])
+            areas.append((end_h-start_h)*(end_w-start_w))
             start_w += grid_w
         start_h += grid_h
-    locations_sorted = [x for _, x in sorted(zip(complexities, locations_sorted))]
-    areas_sorted = [x for _, x in sorted(zip(complexities, areas_sorted))]
-    return locations_sorted, areas_sorted
+    locations_sorted = [x for _, x in sorted(zip(complexities, locations))]
+    areas_sorted = [x for _, x in sorted(zip(complexities, areas))]
+    return locations_sorted, areas_sorted, locations, areas, complexities
+
 
 def bbox_zeros(image, bboxes, ratio, grid_h, grid_w):
     img_h, img_w = image.shape[2:]
-    locations_sorted, areas_sorted = scan_complexity(image, bboxes, grid_h, grid_w)
+    locations_sorted, areas_sorted, locations, areas, complexities = scan_complexity(image, bboxes, grid_h, grid_w)
     assert sum(areas_sorted) == img_h*img_w, "sum(areas_sorted) = %d v.s. img_h*img_w = %d"%(sum(areas_sorted), img_h*img_w)
     ratios = np.cumsum(areas_sorted) / (img_h*img_w)
     threshold = (ratios < ratio).sum()
     for i in range(threshold):
         start_h, end_h, start_w, end_w = locations_sorted[i]
-        image[:, :, start_h:end_h, start_w:end_w] = -2.1179
+        image[:, :, start_h:end_h, start_w:end_w] = BACKGROUND
     return image
+
 
 def summarize_bbox(bbox_results):
     bboxes = []
@@ -96,6 +101,7 @@ def summarize_bbox(bbox_results):
                 bboxes.append(rect)
     return bboxes
 
+
 def drop_by_bbox(data, results, grid_h=GRID_H, grid_w=GRID_W, ratio=RATIO):
     import time
     if len(results) > 0:
@@ -108,6 +114,44 @@ def drop_by_bbox(data, results, grid_h=GRID_H, grid_w=GRID_W, ratio=RATIO):
         data["img"][0] = bbox_zeros(data["img"][0], bboxes, ratio, grid_h, grid_w)
         # print("bbox_zeros", time.time() - start_time)
     return data
+
+
+def merge_complexities(complexities=None, complexities_pre=None):
+    complexities
+    return
+
+
+def apply_dropping(data, results, locations_pre=None, areas_pre=None, complexity_pre=None, grid_h=GRID_H, grid_w=GRID_W, ratio=RATIO):
+    """
+    data: dict of 'img' and 'img_metas' for current frame
+    results: predictions from last frame
+    locations_pre: patches cropped during preprocessing in dataloader
+    areas_pre: areas of patches cropped during preprocessing in dataloader
+    complexity_pre: complexities of patches from preprocessing in dataloader (by measuring nature image complexity)
+    """
+    img = data["img"][0]
+    img_h, img_w = img.shape[2:]
+    complexities = None
+    if len(results) > 0:
+        bboxes = summarize_bbox(results["bbox_results"])
+        _, _, locations, areas, complexities = scan_complexity(img, bboxes, grid_h, grid_w)
+        bp()
+        assert sum(areas) == img_h*img_w, "sum(areas_sorted) = %d v.s. img_h*img_w = %d"%(sum(areas), img_h*img_w)
+        if locations_pre:
+            for loc, loc_pre in zip(locations, locations_pre):
+                assert loc == loc_pre
+        if areas_pre:
+            for area, area_pre in zip(areas, areas_pre):
+                assert area == area_pre
+    complexities_merged = merge_complexities(complexities=complexities, complexities_pre=complexity_pre)
+    locations_sorted = [x for _, x in sorted(zip(complexities_merged, locations))]
+    areas_sorted = [x for _, x in sorted(zip(complexities_merged, areas))]
+    ratios = np.cumsum(areas_sorted) / (img_h*img_w)
+    threshold = (ratios < ratio).sum()
+    for i in range(threshold):
+        start_h, end_h, start_w, end_w = locations_sorted[i]
+        img[:, :, start_h:end_h, start_w:end_w] = -2.1179
+    return
 
 
 def single_gpu_test(model,
@@ -128,13 +172,15 @@ def single_gpu_test(model,
     # model.module.backbone.layer3[-1].register_forward_hook(features_collector3)
     # model.module.backbone.layer4[-1].register_forward_hook(features_collector4)
 
-    result = defaultdict(list) # output of each step
+    result = defaultdict(list) # output of each single step
     results = defaultdict(list)
     dataset = data_loader.dataset
     prog_bar = mmcv.ProgressBar(len(dataset))
     for i, data in enumerate(data_loader):
 
-        data = drop_by_bbox(data, result) # drop by bbox predicted from t-1 frame
+        # data = drop_by_bbox(data, result) # drop by bbox predicted from t-1 frame
+        bp()
+        apply_dropping(data, result, locations_pre=data['img_metas']['locations'], areas_pre=data['img_metas']['areas'], complexity_pre=data['img_metas']['complexities'], grid_h=data['img_metas']['grid_h'], grid_w=data['img_metas']['grid_w'], ratio=data['img_metas']['ratio'])
 
         with torch.no_grad():
             result = model(return_loss=False, rescale=True, **data)
