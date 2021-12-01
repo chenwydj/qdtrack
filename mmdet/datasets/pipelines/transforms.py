@@ -747,6 +747,13 @@ class DropPatch:
         
         if self.ratio > 0 + 1e-4:
             self.complexity_zeros(results)
+        else:
+            drop_info = dict()
+            drop_info["meta"] = {}
+            drop_info["locations"] = list()
+            drop_info["areas"] = list()
+            drop_info["complexities"] = list()
+            results["drop_info"] = drop_info
         # cv2.imwrite("dropped.png", results['img'])
         return results
 
