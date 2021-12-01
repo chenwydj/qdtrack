@@ -143,6 +143,10 @@ def apply_dropping(data, results, locations_pre=None, areas_pre=None, complexity
         if areas_pre:
             for area, area_pre in zip(areas, areas_pre):
                 assert area == area_pre
+    else:
+        assert locations_pre and areas_pre and complexity_pre
+        locations = locations_pre
+        areas = areas_pre
     complexities_merged = merge_complexities(complexities=complexities, complexities_pre=complexity_pre)
     locations_sorted = [x for _, x in sorted(zip(complexities_merged, locations))]
     areas_sorted = [x for _, x in sorted(zip(complexities_merged, areas))]
@@ -179,7 +183,6 @@ def single_gpu_test(model,
     for i, data in enumerate(data_loader):
 
         # data = drop_by_bbox(data, result) # drop by bbox predicted from t-1 frame
-        bp()
         apply_dropping(data, result,
             locations_pre=data['img_metas'][0].data[0][0]['drop_info']['locations'],
             areas_pre=data['img_metas'][0].data[0][0]['drop_info']['areas'],
