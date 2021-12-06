@@ -1,8 +1,41 @@
 import mmcv
 import numpy as np
 from mmdet.datasets.builder import PIPELINES
-from mmdet.datasets.pipelines import Normalize, Pad, RandomFlip, Resize
+from mmdet.datasets.pipelines import Normalize, Pad, RandomFlip, Resize, DropPatch
+import cv2
 
+@PIPELINES.register_module()
+class SeqDropPatch(DropPatch):
+    def __init__(self,
+                 grid_h=3,
+                 grid_w=3,
+                 ratio=0.0,
+                 avg_pool=False,
+                 debug=False,
+                 share_params=True
+                 ):
+        self.grid_h = grid_h
+        self.grid_w = grid_w
+        self.ratio = ratio
+        self.debug = debug
+        self.avg_pool = avg_pool
+        self.share_params = share_params
+
+    def __call__(self, results):
+        outs = []
+        if self.ratio > 0 + 1e-4:
+            for i, _results in enumerate(results):
+                # cv2.imwrite("1111111.png", _results['img'])
+                _results = super().__call__(_results)
+                outs.append(_results)
+                # cv2.imwrite("2222222.png", _results['img'])
+                # exit(0)
+        return results
+
+    def __repr__(self):
+        repr_str = self.__class__.__name__
+        repr_str += f'drop_ratio={self.ratio}, '
+        return repr_str
 
 @PIPELINES.register_module()
 class SeqResize(Resize):
