@@ -46,6 +46,7 @@ def box_iou(loc, bboxes):
     for rect in bboxes:
         # https://stackoverflow.com/questions/39049929/finding-the-area-of-intersection-of-multiple-overlapping-rectangles-in-python
         area += rect_target.intersection(rect).area
+        # TODO add union area
     return area
 
 
