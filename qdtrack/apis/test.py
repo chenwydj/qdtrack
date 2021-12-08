@@ -1,4 +1,5 @@
 import os.path as osp
+import pdb
 import shutil
 import tempfile
 import time
@@ -12,6 +13,7 @@ from torch import nn
 import torch.distributed as dist
 from mmcv.runner import get_dist_info
 from pdb import set_trace as bp
+import cv2
 
 
 class Features:
@@ -117,8 +119,40 @@ def drop_by_bbox(data, results, grid_h=GRID_H, grid_w=GRID_W, ratio=RATIO):
     return data
 
 
-def merge_complexities(complexities=None, complexities_pre=None):
-    return complexities_pre
+def merge_complexities(complexities=None, complexities_pre=None, merge=True, norm=True, comp_type="mean"):
+    '''
+    complexities_pre: complexity computed by image content
+    complexities: complexity computed by previous frame
+    merge: flag to decide merge complexity lists
+    norm: flag to decide norm the complexity list
+    comp_type: how to do compose
+    '''
+    if not merge:
+        return complexities_pre
+    if complexities is None:
+        return complexities_pre
+    else:
+        complexities_composed = list()
+        complexities_pre = complexities_pre.tolist()
+        assert len(complexities) == len(complexities_pre)
+
+        # import matplotlib.pyplot as plt 
+        # plt.rcParams.update({'figure.figsize':(7,5), 'figure.dpi':100}) 
+        # plt.hist(complexities, bins=50)
+        # plt.savefig("distrib_prevframe_nonorm.png")
+        # bp()
+        if norm:
+            complexities_pre = [comp/max(max(complexities_pre), 1e-3) for comp in complexities_pre]
+            complexities = [comp/max(max(complexities), 1e-3) for comp in complexities]
+
+        if comp_type == "mean":
+            complexities_composed = [(abs(img) + abs(box))/2 for img, box in zip(complexities, complexities_pre)]
+        elif comp_type == "multiply":
+            complexities_composed = [(abs(img) * abs(box)) for img, box in zip(complexities, complexities_pre)]
+        else:
+            raise NotImplementedError
+        
+        return complexities_composed
 
 
 def apply_dropping(data, results, locations_pre=None, areas_pre=None, complexity_pre=None, grid_h=GRID_H, grid_w=GRID_W, ratio=RATIO):
@@ -130,6 +164,11 @@ def apply_dropping(data, results, locations_pre=None, areas_pre=None, complexity
     complexity_pre: complexities of patches from preprocessing in dataloader (by measuring nature image complexity)
     """
     img = data["img"][0]
+    # aa = data["img"][0].squeeze(0).permute(1,2,0).cpu().numpy()
+    # aa = aa - aa.min()
+    # bb = (aa / aa.max() * 255).astype(np.uint8)
+    # cv2.imwrite("img_ori.png", cv2.cvtColor(bb,cv2.COLOR_RGB2BGR))
+
     img_h, img_w = img.shape[2:]
     complexities = None
     if len(results) > 0:
@@ -156,6 +195,11 @@ def apply_dropping(data, results, locations_pre=None, areas_pre=None, complexity
     for i in range(threshold):
         start_h, end_h, start_w, end_w = locations_sorted[i]
         img[:, :, start_h:end_h, start_w:end_w] = -2.1179
+    
+    # aa = data["img"][0].squeeze(0).permute(1,2,0).cpu().numpy()
+    # aa = aa - aa.min()
+    # bb = (aa / aa.max() * 255).astype(np.uint8)
+    # cv2.imwrite("img_dropped_imgcomplx.png", cv2.cvtColor(bb,cv2.COLOR_RGB2BGR))
     return
 
 
