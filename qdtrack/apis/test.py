@@ -139,8 +139,8 @@ def merge_complexities(complexities=None, complexities_pre=None, merge=True, nor
         complexities_pre = complexities_pre.tolist()
         assert len(complexities) == len(complexities_pre)
 
-        # import matplotlib.pyplot as plt 
-        # plt.rcParams.update({'figure.figsize':(7,5), 'figure.dpi':100}) 
+        # import matplotlib.pyplot as plt
+        # plt.rcParams.update({'figure.figsize':(7,5), 'figure.dpi':100})
         # plt.hist(complexities, bins=50)
         # plt.savefig("distrib_prevframe_nonorm.png")
         # bp()
@@ -154,7 +154,7 @@ def merge_complexities(complexities=None, complexities_pre=None, merge=True, nor
             complexities_composed = [(abs(img) * abs(box)) for img, box in zip(complexities, complexities_pre)]
         else:
             raise NotImplementedError
-        
+
         return complexities_composed
 
 
@@ -198,7 +198,7 @@ def apply_dropping(data, results, locations_pre=None, areas_pre=None, complexity
     for i in range(threshold):
         start_h, end_h, start_w, end_w = locations_sorted[i]
         img[:, :, start_h:end_h, start_w:end_w] = -2.1179
-    
+
     # aa = data["img"][0].squeeze(0).permute(1,2,0).cpu().numpy()
     # aa = aa - aa.min()
     # bb = (aa / aa.max() * 255).astype(np.uint8)
