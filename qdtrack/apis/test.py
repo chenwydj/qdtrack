@@ -1,4 +1,5 @@
 import os.path as osp
+import pdb
 import shutil
 import tempfile
 import time
@@ -12,6 +13,7 @@ from torch import nn
 import torch.distributed as dist
 from mmcv.runner import get_dist_info
 from pdb import set_trace as bp
+import cv2
 
 
 class Features:
@@ -40,17 +42,21 @@ THRESHOLD = 0.01 # detection confidence
 RATIO = 0.2
 GRID_H = GRID_W = 60
 from shapely.geometry import box
-def box_iou(loc, bboxes):
+def box_iou(loc, bboxes, complexity_type='intersection'):
+    assert complexity_type in ["iou", "intersection"]
     rect_target = box(*loc)
-    area = 0
+    complexity = 0
     for rect in bboxes:
         # https://stackoverflow.com/questions/39049929/finding-the-area-of-intersection-of-multiple-overlapping-rectangles-in-python
-        area += rect_target.intersection(rect).area
-    return area
+        if complexity_type == "intersection":
+            complexity += rect_target.intersection(rect).area
+        else:
+            complexity += (rect_target.intersection(rect).area / rect_target.union(rect).area)
+    return complexity
 
 
 # detection prediction from frame t-1 as complexity
-def scan_complexity(image, bboxes, grid_h, grid_w):
+def scan_complexity(image, bboxes, grid_h, grid_w, complexity_type="intersection"):
     areas = []
     locations = []
     complexities = []
@@ -64,7 +70,7 @@ def scan_complexity(image, bboxes, grid_h, grid_w):
         while start_w < img_w:
             end_w = min(img_w, start_w + grid_w)
             # complexities.append(box_iou([start_h, start_w, end_h-start_h, end_w-start_w], bboxes))
-            complexities.append(box_iou([start_w, start_h, end_w, end_h], bboxes))
+            complexities.append(box_iou([start_w, start_h, end_w, end_h], bboxes, complexity_type=complexity_type))
             # complexities.append(box_iou([start_h, start_w, end_h, end_w], bboxes))
             # complexities.append(box_iou([start_w, end_h, end_w, start_h], bboxes))
             locations.append([start_h, end_h, start_w, end_w])
@@ -76,9 +82,9 @@ def scan_complexity(image, bboxes, grid_h, grid_w):
     return locations_sorted, areas_sorted, locations, areas, complexities
 
 
-def bbox_zeros(image, bboxes, ratio, grid_h, grid_w):
+def bbox_zeros(image, bboxes, ratio, grid_h, grid_w, complexity_type="intersection"):
     img_h, img_w = image.shape[2:]
-    locations_sorted, areas_sorted, locations, areas, complexities = scan_complexity(image, bboxes, grid_h, grid_w)
+    locations_sorted, areas_sorted, locations, areas, complexities = scan_complexity(image, bboxes, grid_h, grid_w, complexity_type=complexity_type)
     assert sum(areas_sorted) == img_h*img_w, "sum(areas_sorted) = %d v.s. img_h*img_w = %d"%(sum(areas_sorted), img_h*img_w)
     ratios = np.cumsum(areas_sorted) / (img_h*img_w)
     threshold = (ratios < ratio).sum()
@@ -102,7 +108,7 @@ def summarize_bbox(bbox_results):
     return bboxes
 
 
-def drop_by_bbox(data, results, grid_h=GRID_H, grid_w=GRID_W, ratio=RATIO):
+def drop_by_bbox(data, results, grid_h=GRID_H, grid_w=GRID_W, ratio=RATIO, complexity_type="intersection"):
     import time
     if len(results) > 0:
         start_time = time.time()
@@ -111,16 +117,48 @@ def drop_by_bbox(data, results, grid_h=GRID_H, grid_w=GRID_W, ratio=RATIO):
         # only support batch_size = 1 for now, since bbox is only from one frame
         # data["img"][0] is still BCHW, B = 1
         start_time = time.time()
-        data["img"][0] = bbox_zeros(data["img"][0], bboxes, ratio, grid_h, grid_w)
+        data["img"][0] = bbox_zeros(data["img"][0], bboxes, ratio, grid_h, grid_w, complexity_type=complexity_type)
         # print("bbox_zeros", time.time() - start_time)
     return data
 
 
-def merge_complexities(complexities=None, complexities_pre=None):
-    return complexities_pre
+def merge_complexities(complexities=None, complexities_pre=None, merge=True, norm=True, comp_type="mean"):
+    '''
+    complexities_pre: complexity computed by image content
+    complexities: complexity computed by previous frame
+    merge: flag to decide merge complexity lists
+    norm: flag to decide norm the complexity list
+    comp_type: how to do compose
+    '''
+    if not merge:
+        return complexities_pre
+    if complexities is None:
+        return complexities_pre
+    else:
+        complexities_composed = list()
+        complexities_pre = complexities_pre.tolist()
+        assert len(complexities) == len(complexities_pre)
+
+        # import matplotlib.pyplot as plt 
+        # plt.rcParams.update({'figure.figsize':(7,5), 'figure.dpi':100}) 
+        # plt.hist(complexities, bins=50)
+        # plt.savefig("distrib_prevframe_nonorm.png")
+        # bp()
+        if norm:
+            complexities_pre = [comp/max(max(complexities_pre), 1e-3) for comp in complexities_pre]
+            complexities = [comp/max(max(complexities), 1e-3) for comp in complexities]
+
+        if comp_type == "mean":
+            complexities_composed = [(abs(img) + abs(box))/2 for img, box in zip(complexities, complexities_pre)]
+        elif comp_type == "multiply":
+            complexities_composed = [(abs(img) * abs(box)) for img, box in zip(complexities, complexities_pre)]
+        else:
+            raise NotImplementedError
+        
+        return complexities_composed
 
 
-def apply_dropping(data, results, locations_pre=None, areas_pre=None, complexity_pre=None, grid_h=GRID_H, grid_w=GRID_W, ratio=RATIO):
+def apply_dropping(data, results, locations_pre=None, areas_pre=None, complexity_pre=None, grid_h=GRID_H, grid_w=GRID_W, ratio=RATIO, complexity_type="intersection"):
     """
     data: dict of 'img' and 'img_metas' for current frame
     results: predictions from last frame
@@ -129,11 +167,16 @@ def apply_dropping(data, results, locations_pre=None, areas_pre=None, complexity
     complexity_pre: complexities of patches from preprocessing in dataloader (by measuring nature image complexity)
     """
     img = data["img"][0]
+    # aa = data["img"][0].squeeze(0).permute(1,2,0).cpu().numpy()
+    # aa = aa - aa.min()
+    # bb = (aa / aa.max() * 255).astype(np.uint8)
+    # cv2.imwrite("img_ori.png", cv2.cvtColor(bb,cv2.COLOR_RGB2BGR))
+
     img_h, img_w = img.shape[2:]
     complexities = None
     if len(results) > 0:
         bboxes = summarize_bbox(results["bbox_results"])
-        _, _, locations, areas, complexities = scan_complexity(img, bboxes, grid_h, grid_w)
+        _, _, locations, areas, complexities = scan_complexity(img, bboxes, grid_h, grid_w, complexity_type=complexity_type)
         assert sum(areas) == img_h*img_w, "sum(areas_sorted) = %d v.s. img_h*img_w = %d"%(sum(areas), img_h*img_w)
         if locations_pre:
             assert len(locations) == len(locations_pre)
@@ -155,6 +198,11 @@ def apply_dropping(data, results, locations_pre=None, areas_pre=None, complexity
     for i in range(threshold):
         start_h, end_h, start_w, end_w = locations_sorted[i]
         img[:, :, start_h:end_h, start_w:end_w] = -2.1179
+    
+    # aa = data["img"][0].squeeze(0).permute(1,2,0).cpu().numpy()
+    # aa = aa - aa.min()
+    # bb = (aa / aa.max() * 255).astype(np.uint8)
+    # cv2.imwrite("img_dropped_imgcomplx.png", cv2.cvtColor(bb,cv2.COLOR_RGB2BGR))
     return
 
 
@@ -190,7 +238,8 @@ def single_gpu_test(model,
                 complexity_pre=data['img_metas'][0].data[0][0]['drop_info']['complexities'],
                 grid_h=data['img_metas'][0].data[0][0]['drop_info']['meta']['grid_h'],
                 grid_w=data['img_metas'][0].data[0][0]['drop_info']['meta']['grid_w'],
-                ratio=data['img_metas'][0].data[0][0]['drop_info']['meta']['ratio']
+                ratio=data['img_metas'][0].data[0][0]['drop_info']['meta']['ratio'],
+                complexity_type=data['img_metas'][0].data[0][0]['drop_info']['meta']['prev_frame_complexity_type']
             )
 
         with torch.no_grad():
