@@ -51,7 +51,8 @@ def box_iou(loc, bboxes, complexity_type='intersection'):
         if complexity_type == "intersection":
             complexity += rect_target.intersection(rect).area
         else:
-            complexity += (rect_target.intersection(rect).area / rect_target.union(rect).area)
+            # complexity += (rect_target.intersection(rect).area / rect_target.union(rect).area)
+            complexity += (rect_target.intersection(rect).area / min(rect_target.area, rect.area))
     return complexity
 
 
