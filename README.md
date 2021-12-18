@@ -1,5 +1,8 @@
 ### Commands
 
+**Extra Installation**
+`pip install grad-cam ttach`
+
 **Detection**
 ```bash
 CUDA_VISIBLE_DEVICES=2 python tools/test.py configs/bdd100k/qdtrack-frcnn_r50_fpn_12e_bdd100k.py \
@@ -12,6 +15,8 @@ CUDA_VISIBLE_DEVICES=2 python tools/test.py configs/bdd100k/qdtrack-frcnn_r50_fp
 CUDA_VISIBLE_DEVICES=2 python tools/test.py configs/bdd100k/qdtrack-frcnn_r50_fpn_12e_bdd100k.py \
 /ssd1/chenwy/dataset/bdd100k/qdtrack-frcnn_r50_fpn_12e_bdd100k-13328aed.pth \
 --eval track --show
+
+CUDA_VISIBLE_DEVICES=3 python tools/test.py configs/bdd100k/qdtrack-frcnn_r50_fpn_12e_bdd100k.py /ssd1/chenwy/dataset/bdd100k/qdtrack-frcnn_r50_fpn_12e_bdd100k-13328aed.pth  --eval track --prune 0.7
 ````
 
 

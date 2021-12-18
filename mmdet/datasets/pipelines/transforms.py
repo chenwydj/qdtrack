@@ -664,13 +664,15 @@ class DropPatch:
                  ratio=0.0,
                  avg_pool=False,
                  debug=False, 
-                 true_drop=False):
+                 true_drop=False,
+                 prev_frame_complexity_type="iou"):
         self.grid_h = grid_h
         self.grid_w = grid_w
         self.ratio = ratio
         self.debug = debug
         self.avg_pool = avg_pool
         self.true_drop = true_drop
+        self.prev_frame_complexity_type = prev_frame_complexity_type
 
     def image_complexity(self, input_images, rgb=True):
         ''' input_images -> np.array of BGR channel order '''
@@ -731,7 +733,7 @@ class DropPatch:
         ratios = np.cumsum(areas_sorted) / (img_h*img_w)
         threshold = (ratios < self.ratio).sum()
         drop_info = dict()
-        drop_info["meta"] = {"grid_w": self.grid_w, "grid_h": self.grid_h, "ratio":self.ratio}
+        drop_info["meta"] = {"grid_w": self.grid_w, "grid_h": self.grid_h, "ratio":self.ratio, "prev_frame_complexity_type":self.prev_frame_complexity_type}
         drop_info["locations"] = locations
         drop_info["areas"] = areas
         drop_info["complexities"] = complexities
