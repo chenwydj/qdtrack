@@ -30,6 +30,12 @@ class Features:
         self.outputs = []
 
 
+def mask_feature(module, input, output):
+    _, _, h, w = output.shape
+    mask = torch.nn.functional.interpolate(module.mask, size=(h, w))
+    return output * mask
+
+
 from torchvision import transforms
 inv_normalizer = transforms.Normalize(
     mean=[-0.485/0.229, -0.456/0.224, -0.406/0.225],
@@ -237,6 +243,9 @@ def single_gpu_test(model,
     # model.module.backbone.layer3[-1].register_forward_hook(features_collector3)
     # model.module.backbone.layer4[-1].register_forward_hook(features_collector4)
 
+    for name, module in model.layer1.named_modules():
+        module.register_forward_hook(mask_feature)
+
     result = defaultdict(list) # output of each single step
     results = defaultdict(list)
     dataset = data_loader.dataset
@@ -254,6 +263,9 @@ def single_gpu_test(model,
                 ratio=data['img_metas'][0].data[0][0]['drop_info']['meta']['ratio'],
                 complexity_type=data['img_metas'][0].data[0][0]['drop_info']['meta']['prev_frame_complexity_type']
             )
+
+        for name, module in model.named_modules():
+            setattr(module, "mask", data['mask'])
 
         with torch.no_grad():
             result = model(return_loss=False, rescale=True, **data)
