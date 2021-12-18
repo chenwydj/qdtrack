@@ -221,8 +221,7 @@ def apply_dropping(data, results, locations_pre=None, areas_pre=None, complexity
     # aa = aa - aa.min()
     # bb = (aa / aa.max() * 255).astype(np.uint8)
     # cv2.imwrite("img_dropped_imgcomplx.png", cv2.cvtColor(bb,cv2.COLOR_RGB2BGR))
-    data["mask"] = mask
-    return
+    return mask.unsqueeze(0).unsqueeze(0).cuda()
 
 
 def single_gpu_test(model,
@@ -243,7 +242,15 @@ def single_gpu_test(model,
     # model.module.backbone.layer3[-1].register_forward_hook(features_collector3)
     # model.module.backbone.layer4[-1].register_forward_hook(features_collector4)
 
-    for name, module in model.layer1.named_modules():
+    for name, module in model.module.backbone.conv1.named_modules():
+        module.register_forward_hook(mask_feature)
+    for name, module in model.module.backbone.layer1.named_modules():
+        module.register_forward_hook(mask_feature)
+    for name, module in model.module.backbone.layer2.named_modules():
+        module.register_forward_hook(mask_feature)
+    for name, module in model.module.backbone.layer3.named_modules():
+        module.register_forward_hook(mask_feature)
+    for name, module in model.module.backbone.layer4.named_modules():
         module.register_forward_hook(mask_feature)
 
     result = defaultdict(list) # output of each single step
@@ -254,7 +261,7 @@ def single_gpu_test(model,
 
         # data = drop_by_bbox(data, result) # drop by bbox predicted from t-1 frame
         if data['img_metas'][0].data[0][0]['drop_info']['meta']['ratio'] > 0:
-            apply_dropping(data, result,
+            mask = apply_dropping(data, result,
                 locations_pre=data['img_metas'][0].data[0][0]['drop_info']['locations'],
                 areas_pre=data['img_metas'][0].data[0][0]['drop_info']['areas'],
                 complexity_pre=data['img_metas'][0].data[0][0]['drop_info']['complexities'],
@@ -264,8 +271,17 @@ def single_gpu_test(model,
                 complexity_type=data['img_metas'][0].data[0][0]['drop_info']['meta']['prev_frame_complexity_type']
             )
 
-        for name, module in model.named_modules():
-            setattr(module, "mask", data['mask'])
+        # for name, module in model.named_modules():
+        for name, module in model.module.backbone.conv1.named_modules():
+            setattr(module, "mask", mask)
+        for name, module in model.module.backbone.layer1.named_modules():
+            setattr(module, "mask", mask)
+        for name, module in model.module.backbone.layer2.named_modules():
+            setattr(module, "mask", mask)
+        for name, module in model.module.backbone.layer3.named_modules():
+            setattr(module, "mask", mask)
+        for name, module in model.module.backbone.layer4.named_modules():
+            setattr(module, "mask", mask)
 
         with torch.no_grad():
             result = model(return_loss=False, rescale=True, **data)
