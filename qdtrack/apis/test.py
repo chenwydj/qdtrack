@@ -35,7 +35,7 @@ inv_normalizer = transforms.Normalize(
     mean=[-0.485/0.229, -0.456/0.224, -0.406/0.225],
     std=[1/0.229, 1/0.224, 1/0.225]
 )
-BACKGROUND = -2.1179
+# BACKGROUND = -2.1179
 
 
 THRESHOLD = 0.01 # detection confidence
@@ -91,7 +91,10 @@ def bbox_zeros(image, bboxes, ratio, grid_h, grid_w, complexity_type="intersecti
     threshold = (ratios < ratio).sum()
     for i in range(threshold):
         start_h, end_h, start_w, end_w = locations_sorted[i]
-        image[:, :, start_h:end_h, start_w:end_w] = BACKGROUND
+        # image[:, :, start_h:end_h, start_w:end_w] = BACKGROUND
+        image[:, 0, start_h:end_h, start_w:end_w] = -0.485/0.229
+        image[:, 1, start_h:end_h, start_w:end_w] = -0.456/0.224
+        image[:, 2, start_h:end_h, start_w:end_w] = -0.406/0.225
     return image
 
 
@@ -131,17 +134,20 @@ def merge_complexities(complexities=None, complexities_pre=None, merge=True, nor
     norm: flag to decide norm the complexity list
     comp_type: how to do compose
     '''
+    assert complexities is not None or complexities_pre is not None
     if not merge:
         return complexities_pre
     if complexities is None:
         return complexities_pre
+    if complexities_pre is None:
+        return complexities
     else:
         complexities_composed = list()
         complexities_pre = complexities_pre.tolist()
         assert len(complexities) == len(complexities_pre)
 
-        # import matplotlib.pyplot as plt 
-        # plt.rcParams.update({'figure.figsize':(7,5), 'figure.dpi':100}) 
+        # import matplotlib.pyplot as plt
+        # plt.rcParams.update({'figure.figsize':(7,5), 'figure.dpi':100})
         # plt.hist(complexities, bins=50)
         # plt.savefig("distrib_prevframe_nonorm.png")
         # bp()
@@ -155,7 +161,7 @@ def merge_complexities(complexities=None, complexities_pre=None, merge=True, nor
             complexities_composed = [(abs(img) * abs(box)) for img, box in zip(complexities, complexities_pre)]
         else:
             raise NotImplementedError
-        
+
         return complexities_composed
 
 
@@ -192,14 +198,17 @@ def apply_dropping(data, results, locations_pre=None, areas_pre=None, complexity
         locations = locations_pre
         areas = areas_pre
     complexities_merged = merge_complexities(complexities=complexities, complexities_pre=complexity_pre)
-    locations_sorted = [x for _, x in sorted(zip(complexities_merged, locations))]
-    areas_sorted = [x for _, x in sorted(zip(complexities_merged, areas))]
+    locations_sorted = [x for _, x in sorted(zip(complexities_merged, locations), key=lambda pair: pair[0])]
+    areas_sorted = [x for _, x in sorted(zip(complexities_merged, areas), key=lambda pair: pair[0])]
     ratios = np.cumsum(areas_sorted) / (img_h*img_w)
     threshold = (ratios < ratio).sum()
     for i in range(threshold):
         start_h, end_h, start_w, end_w = locations_sorted[i]
-        img[:, :, start_h:end_h, start_w:end_w] = -2.1179
-    
+        # img[:, :, start_h:end_h, start_w:end_w] = -2.1179
+        img[:, 0, start_h:end_h, start_w:end_w] = -0.485/0.229
+        img[:, 1, start_h:end_h, start_w:end_w] = -0.456/0.224
+        img[:, 2, start_h:end_h, start_w:end_w] = -0.406/0.225
+
     # aa = data["img"][0].squeeze(0).permute(1,2,0).cpu().numpy()
     # aa = aa - aa.min()
     # bb = (aa / aa.max() * 255).astype(np.uint8)
