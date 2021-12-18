@@ -59,7 +59,7 @@ test_pipeline = [
             dict(type='Resize', keep_ratio=True),
             dict(type='RandomFlip'),
             dict(type='Pad', size_divisor=32),
-            dict(type='DropPatch', grid_h=60, grid_w=60, ratio=0.4, debug=False, avg_pool=True, true_drop=False),
+            dict(type='DropPatch', grid_h=60, grid_w=60, ratio=0.4, debug=False, avg_pool=True, true_drop=False, prev_frame_complexity_type="iou"),
             dict(type='Normalize', **img_norm_cfg),
             dict(type='ImageToTensor', keys=['img']),
             dict(type='VideoCollect', keys=['img'])
