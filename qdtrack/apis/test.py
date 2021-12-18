@@ -174,6 +174,7 @@ def apply_dropping(data, results, locations_pre=None, areas_pre=None, complexity
     complexity_pre: complexities of patches from preprocessing in dataloader (by measuring nature image complexity)
     """
     img = data["img"][0]
+    mask = torch.ones(img.shape[2], img.shape[3]).to(img.device)
     # aa = data["img"][0].squeeze(0).permute(1,2,0).cpu().numpy()
     # aa = aa - aa.min()
     # bb = (aa / aa.max() * 255).astype(np.uint8)
@@ -208,11 +209,13 @@ def apply_dropping(data, results, locations_pre=None, areas_pre=None, complexity
         img[:, 0, start_h:end_h, start_w:end_w] = -0.485/0.229
         img[:, 1, start_h:end_h, start_w:end_w] = -0.456/0.224
         img[:, 2, start_h:end_h, start_w:end_w] = -0.406/0.225
+        mask[start_h:end_h, start_w:end_w] = 0
 
     # aa = data["img"][0].squeeze(0).permute(1,2,0).cpu().numpy()
     # aa = aa - aa.min()
     # bb = (aa / aa.max() * 255).astype(np.uint8)
     # cv2.imwrite("img_dropped_imgcomplx.png", cv2.cvtColor(bb,cv2.COLOR_RGB2BGR))
+    data["mask"] = mask
     return
 
 
