@@ -15,6 +15,16 @@ from mmcv.runner import get_dist_info
 from pdb import set_trace as bp
 import cv2
 
+def save_fig(data, save_path="1.png"):
+    if "img" in data:
+        res = data["img"][0].squeeze(0).permute(1,2,0).cpu().numpy()
+        res = res - res.min()
+        res = (res / res.max() * 255).astype(np.uint8)
+    else:
+        res = data.squeeze(0).permute(1,2,0).cpu().numpy()
+        res = res - res.min()
+        res = (res / res.max() * 255).astype(np.uint8)
+    cv2.imwrite(save_path, cv2.cvtColor(res, cv2.COLOR_RGB2BGR))
 
 class Features:
     def __init__(self):
@@ -132,7 +142,7 @@ def drop_by_bbox(data, results, grid_h=GRID_H, grid_w=GRID_W, ratio=RATIO, compl
     return data
 
 
-def merge_complexities(complexities=None, complexities_pre=None, merge=True, norm=True, comp_type="mean"):
+def merge_complexities(complexities=None, complexities_pre=None, merge=True, norm=True, comp_type="multiply"):
     '''
     complexities_pre: complexity computed by image content
     complexities: complexity computed by previous frame
@@ -205,6 +215,12 @@ def apply_dropping(data, results, locations_pre=None, areas_pre=None, complexity
         locations = locations_pre
         areas = areas_pre
     complexities_merged = merge_complexities(complexities=complexities, complexities_pre=complexity_pre)
+    #TODO TODO
+    # if complexities is not None:
+    #     complexities_merged = complexities
+    # else:
+    #     complexities_merged = complexity_pre
+    
     locations_sorted = [x for _, x in sorted(zip(complexities_merged, locations), key=lambda pair: pair[0])]
     areas_sorted = [x for _, x in sorted(zip(complexities_merged, areas), key=lambda pair: pair[0])]
     ratios = np.cumsum(areas_sorted) / (img_h*img_w)
@@ -217,10 +233,7 @@ def apply_dropping(data, results, locations_pre=None, areas_pre=None, complexity
         img[:, 2, start_h:end_h, start_w:end_w] = -0.406/0.225
         mask[start_h:end_h, start_w:end_w] = 0
 
-    # aa = data["img"][0].squeeze(0).permute(1,2,0).cpu().numpy()
-    # aa = aa - aa.min()
-    # bb = (aa / aa.max() * 255).astype(np.uint8)
-    # cv2.imwrite("img_dropped_imgcomplx.png", cv2.cvtColor(bb,cv2.COLOR_RGB2BGR))
+    
     return mask.unsqueeze(0).unsqueeze(0).cuda()
 
 
@@ -289,7 +302,9 @@ def single_gpu_test(model,
 
         with torch.no_grad():
             result = model(return_loss=False, rescale=True, **data)
-
+        # if i == 10:
+        #     save_fig(data, "img_dropped_compMulti.png")
+        #     exit(0)
         # n, c, h, w = features_collector.outputs[-1].shape
         # attention = torch.einsum('nchw,nc->nhw', [features_collector.outputs[-1], nn.functional.adaptive_avg_pool2d(features_collector.outputs[-1], (1, 1)).view(1, c)])
         # attention = attention / attention.view(n, -1).sum(1).view(n, 1, 1).repeat(1, h, w)
