@@ -19,7 +19,6 @@ from torch.utils.data import Dataset, DataLoader
 image_idx = "4"
 coord_path = "visualize_features/visualization_data/top_bottom_left_right_{}.npy".format(image_idx)
 raw_mask_path = "visualize_features/visualization_data/image_{}.npy".format(image_idx)
-meta_path = "visualize_features/visualization_data/img_metas_{}.pkl".format(image_idx)
 layer1_path = "visualize_features/visualization_data/image_{}_conv1.npy".format(image_idx)
 layer2_path = "visualize_features/visualization_data/image_{}_layer2.npy".format(image_idx)
 layer3_path = "visualize_features/visualization_data/image_{}_layer3.npy".format(image_idx)
