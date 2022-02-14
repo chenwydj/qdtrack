@@ -303,7 +303,7 @@ class Resize:
                 if 'scale_factor' in results:
                     results.pop('scale_factor')
                 self._random_scale(results)
-        
+
         self._resize_img(results)
         self._resize_bboxes(results)
         self._resize_masks(results)
@@ -663,7 +663,7 @@ class DropPatch:
                  grid_w=3,
                  ratio=0.0,
                  avg_pool=False,
-                 debug=False, 
+                 debug=False,
                  true_drop=False,
                  prev_frame_complexity_type="iou"):
         self.grid_h = grid_h
@@ -746,7 +746,7 @@ class DropPatch:
         results["drop_info"] = drop_info
 
     def __call__(self, results):
-        
+
         if self.ratio > 0 + 1e-4:
             self.complexity_zeros(results)
         else:

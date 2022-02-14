@@ -43,6 +43,7 @@ train_pipeline = [
     dict(type='SeqRandomFlip', share_params=True, flip_ratio=0.5),
     dict(type='SeqNormalize', **img_norm_cfg),
     dict(type='SeqPad', size_divisor=32),
+    dict(type='SeqDropPatch', grid_h=60, grid_w=60, ratio=0.1, debug=False, avg_pool=True, true_drop=True, prev_frame_complexity_type="iou"),
     dict(type='SeqDefaultFormatBundle'),
     dict(
         type='SeqCollect',
@@ -66,8 +67,8 @@ test_pipeline = [
         ])
 ]
 data = dict(
-    samples_per_gpu=48,
-    workers_per_gpu=12,
+    samples_per_gpu=16,
+    workers_per_gpu=20,
     train=[
         dict(
             type=dataset_type,
@@ -122,5 +123,6 @@ log_level = 'INFO'
 # resume_from = None
 # resume_from = "/ssd1/chenwy/dataset/bdd100k/qdtrack-frcnn_r50_fpn_12e_bdd100k-13328aed.pth"
 resume_from = "/home/zhiwen/projects/qdtrack/work_dirs/qdtrack-frcnn_r50_fpn_12e_bdd100k/epoch_14.pth"
+# resume_from = None
 workflow = [('train', 1)]
 evaluation = dict(metric=['bbox', 'track'], interval=2)

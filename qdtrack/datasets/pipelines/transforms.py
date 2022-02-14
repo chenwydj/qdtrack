@@ -3,6 +3,7 @@ import numpy as np
 from mmdet.datasets.builder import PIPELINES
 from mmdet.datasets.pipelines import Normalize, Pad, RandomFlip, Resize, DropPatch
 import cv2
+from pdb import set_trace as bp
 
 @PIPELINES.register_module()
 class SeqDropPatch(DropPatch):
@@ -12,7 +13,9 @@ class SeqDropPatch(DropPatch):
                  ratio=0.0,
                  avg_pool=False,
                  debug=False,
-                 share_params=True
+                 share_params=True,
+                 true_drop=False,
+                 prev_frame_complexity_type="iou"
                  ):
         self.grid_h = grid_h
         self.grid_w = grid_w
@@ -20,6 +23,8 @@ class SeqDropPatch(DropPatch):
         self.debug = debug
         self.avg_pool = avg_pool
         self.share_params = share_params
+        self.true_drop = true_drop
+        self.prev_frame_complexity_type = prev_frame_complexity_type
 
     def __call__(self, results):
         outs = []
@@ -30,7 +35,7 @@ class SeqDropPatch(DropPatch):
                 outs.append(_results)
                 # cv2.imwrite("2222222.png", _results['img'])
                 # exit(0)
-        return results
+        return outs
 
     def __repr__(self):
         repr_str = self.__class__.__name__

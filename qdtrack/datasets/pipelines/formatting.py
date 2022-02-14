@@ -73,7 +73,7 @@ class SeqCollect(VideoCollect):
                  ref_prefix='ref',
                  meta_keys=('filename', 'ori_filename', 'ori_shape',
                             'img_shape', 'pad_shape', 'scale_factor', 'flip',
-                            'flip_direction', 'img_norm_cfg')):
+                            'flip_direction', 'img_norm_cfg', 'drop_info')):
         self.keys = keys
         self.ref_prefix = ref_prefix
         self.meta_keys = meta_keys
