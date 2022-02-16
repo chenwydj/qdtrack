@@ -15,6 +15,30 @@ from mmcv.runner import get_dist_info
 from pdb import set_trace as bp
 import cv2
 
+def single_gpu_test_vanilla(model,
+                    data_loader,
+                    show=False,
+                    out_dir=None,
+                    show_score_thr=0.3):
+    model.eval()
+    results = defaultdict(list)
+    dataset = data_loader.dataset
+    prog_bar = mmcv.ProgressBar(len(dataset))
+    for i, data in enumerate(data_loader):
+        with torch.no_grad():
+            result = model(return_loss=False, rescale=True, **data)
+        for k, v in result.items():
+            results[k].append(v)
+
+        if show or out_dir:
+            pass  # TODO
+
+        batch_size = data['img'][0].size(0)
+        for _ in range(batch_size):
+            prog_bar.update()
+    return results
+
+
 def save_fig(data, save_path="1.png"):
     if "img" in data:
         res = data["img"][0].squeeze(0).permute(1,2,0).cpu().numpy()
@@ -181,7 +205,8 @@ def merge_complexities(complexities=None, complexities_pre=None, merge=True, nor
         return complexities_composed
 
 
-def apply_dropping(data, results, locations_pre=None, areas_pre=None, complexity_pre=None, grid_h=GRID_H, grid_w=GRID_W, ratio=RATIO, complexity_type="intersection"):
+def apply_dropping(data, results, locations_pre=None, areas_pre=None, complexity_pre=None, grid_h=GRID_H, grid_w=GRID_W, ratio=RATIO, 
+    complexity_type="intersection", compose_type='bottom_up'):
     """
     data: dict of 'img' and 'img_metas' for current frame
     results: predictions from last frame
@@ -189,6 +214,8 @@ def apply_dropping(data, results, locations_pre=None, areas_pre=None, complexity
     areas_pre: areas of patches cropped during preprocessing in dataloader
     complexity_pre: complexities of patches from preprocessing in dataloader (by measuring nature image complexity)
     """
+    assert compose_type in ['bottom_up', 'mean', 'multiply']
+
     img = data["img"][0]
     mask = torch.ones(img.shape[2], img.shape[3]).to(img.device)
     # aa = data["img"][0].squeeze(0).permute(1,2,0).cpu().numpy()
@@ -198,29 +225,31 @@ def apply_dropping(data, results, locations_pre=None, areas_pre=None, complexity
 
     img_h, img_w = img.shape[2:]
     complexities = None
-    if len(results) > 0:
-        bboxes = summarize_bbox(results["bbox_results"])
-        _, _, locations, areas, complexities = scan_complexity(img, bboxes, grid_h, grid_w, complexity_type=complexity_type)
-        assert sum(areas) == img_h*img_w, "sum(areas_sorted) = %d v.s. img_h*img_w = %d"%(sum(areas), img_h*img_w)
-        if locations_pre:
-            assert len(locations) == len(locations_pre)
-            for loc, loc_pre in zip(locations, locations_pre):
-                assert loc == loc_pre
-        if areas_pre:
-            assert len(areas) == len(areas_pre)
-            for area, area_pre in zip(areas, areas_pre):
-                assert area == area_pre
-    else:
-        assert (locations_pre is not None) and (areas_pre is not None) and (complexity_pre is not None)
+    if compose_type in ['mean', 'multiply']:
+        if len(results) > 0:
+            bboxes = summarize_bbox(results["bbox_results"])
+            _, _, locations, areas, complexities = scan_complexity(img, bboxes, grid_h, grid_w, complexity_type=complexity_type)
+            assert sum(areas) == img_h*img_w, "sum(areas_sorted) = %d v.s. img_h*img_w = %d"%(sum(areas), img_h*img_w)
+            if locations_pre:
+                assert len(locations) == len(locations_pre)
+                for loc, loc_pre in zip(locations, locations_pre):
+                    assert loc == loc_pre
+            if areas_pre:
+                assert len(areas) == len(areas_pre)
+                for area, area_pre in zip(areas, areas_pre):
+                    assert area == area_pre
+        else:
+            assert (locations_pre is not None) and (areas_pre is not None) and (complexity_pre is not None)
+            locations = locations_pre
+            areas = areas_pre
+        complexities_merged = merge_complexities(complexities=complexities, complexities_pre=complexity_pre)
+    elif compose_type in ['bottom_up']:
+        complexities_merged = complexity_pre
         locations = locations_pre
         areas = areas_pre
-    complexities_merged = merge_complexities(complexities=complexities, complexities_pre=complexity_pre)
-    #TODO TODO
-    # if complexities is not None:
-    #     complexities_merged = complexities
-    # else:
-    #     complexities_merged = complexity_pre
-    
+    else:
+        raise NotImplementedError
+
     locations_sorted = [x for _, x in sorted(zip(complexities_merged, locations), key=lambda pair: pair[0])]
     areas_sorted = [x for _, x in sorted(zip(complexities_merged, areas), key=lambda pair: pair[0])]
     ratios = np.cumsum(areas_sorted) / (img_h*img_w)
@@ -232,7 +261,6 @@ def apply_dropping(data, results, locations_pre=None, areas_pre=None, complexity
         img[:, 1, start_h:end_h, start_w:end_w] = -0.456/0.224
         img[:, 2, start_h:end_h, start_w:end_w] = -0.406/0.225
         mask[start_h:end_h, start_w:end_w] = 0
-
     
     return mask.unsqueeze(0).unsqueeze(0).cuda()
 
@@ -241,9 +269,11 @@ def single_gpu_test(model,
                     data_loader,
                     show=False,
                     out_dir=None,
-                    show_score_thr=0.3):
+                    show_score_thr=0.3, 
+                    compose_type='bottom_up'):
     model.eval()
-
+    
+    print(f"[Compose Type]: {compose_type}")
     ################ register hood in backbone modules to drop patch on features ####################
     model.module.backbone.conv1.register_forward_hook(mask_feature)
     for name, module in model.module.backbone.layer1.named_modules():
@@ -282,7 +312,8 @@ def single_gpu_test(model,
                 grid_h=data['img_metas'][0].data[0][0]['drop_info']['meta']['grid_h'],
                 grid_w=data['img_metas'][0].data[0][0]['drop_info']['meta']['grid_w'],
                 ratio=data['img_metas'][0].data[0][0]['drop_info']['meta']['ratio'],
-                complexity_type=data['img_metas'][0].data[0][0]['drop_info']['meta']['prev_frame_complexity_type']
+                complexity_type=data['img_metas'][0].data[0][0]['drop_info']['meta']['prev_frame_complexity_type'],
+                compose_type=compose_type
             )
 
         ########### register mask in backbone modules ##################

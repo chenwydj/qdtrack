@@ -52,6 +52,15 @@ def parse_args():
     parser.add_argument('checkpoint', help='checkpoint file')
     parser.add_argument('--out', help='output result file')
     parser.add_argument(
+        '--vanilla_test',
+        action='store_true',
+        help='original qdtrack testing')
+    parser.add_argument(
+        '--compose_type',
+        type=str,
+        default='bottom_up',
+        help='how to combine the two complexities')
+    parser.add_argument(
         '--fuse-conv-bn',
         action='store_true',
         help='Whether to fuse conv and bn, this will slightly increase'
@@ -125,7 +134,7 @@ def main():
         from mmdet.models import build_detector as build_model
         from mmdet.datasets import build_dataloader
     else:
-        from qdtrack.apis import multi_gpu_test, single_gpu_test
+        from qdtrack.apis import multi_gpu_test, single_gpu_test, single_gpu_test_vanilla
         from qdtrack.models import build_model
         from qdtrack.datasets import build_dataloader
 
@@ -176,8 +185,12 @@ def main():
 
     if not distributed:
         model = MMDataParallel(model, device_ids=[0])
-        outputs = single_gpu_test(model, data_loader, args.show, args.show_dir,
+        if args.vanilla_test:
+            outputs = single_gpu_test_vanilla(model, data_loader, args.show, args.show_dir,
                                   args.show_score_thr)
+        else:
+            outputs = single_gpu_test(model, data_loader, args.show, args.show_dir,
+                                    args.show_score_thr, args.compose_type)
     else:
         model = MMDistributedDataParallel(
             model.cuda(),
