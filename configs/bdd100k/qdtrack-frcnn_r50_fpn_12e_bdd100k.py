@@ -39,11 +39,11 @@ img_norm_cfg = dict(
 train_pipeline = [
     dict(type='LoadMultiImagesFromFile'),
     dict(type='SeqLoadAnnotations', with_bbox=True, with_ins_id=True),
+    dict(type='SeqDropPatch', grid_h=60, grid_w=60, ratio=0.2, debug=False, avg_pool=True, true_drop=True, prev_frame_complexity_type="iou"),
     dict(type='SeqResize', img_scale=(1296, 720), keep_ratio=True),
     dict(type='SeqRandomFlip', share_params=True, flip_ratio=0.5),
     dict(type='SeqNormalize', **img_norm_cfg),
     dict(type='SeqPad', size_divisor=32),
-    dict(type='SeqDropPatch', grid_h=60, grid_w=60, ratio=0.2, debug=False, avg_pool=True, true_drop=True, prev_frame_complexity_type="iou"),
     dict(type='SeqDefaultFormatBundle'),
     dict(
         type='SeqCollect',
@@ -57,11 +57,11 @@ test_pipeline = [
         img_scale=(1296, 720),
         flip=False,
         transforms=[
+            dict(type='DropPatch', grid_h=60, grid_w=60, ratio=0.2, debug=False, avg_pool=True, true_drop=True, prev_frame_complexity_type="iou"),
             dict(type='Resize', keep_ratio=True),
             dict(type='RandomFlip'),
             dict(type='Normalize', **img_norm_cfg),
             dict(type='Pad', size_divisor=32),
-            dict(type='DropPatch', grid_h=60, grid_w=60, ratio=0.2, debug=False, avg_pool=True, true_drop=True, prev_frame_complexity_type="iou"),
             dict(type='ImageToTensor', keys=['img']),
             dict(type='VideoCollect', keys=['img'])
         ])
