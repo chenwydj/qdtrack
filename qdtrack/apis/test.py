@@ -315,7 +315,6 @@ def single_gpu_test(model,
                 complexity_type=data['img_metas'][0].data[0][0]['drop_info']['meta']['prev_frame_complexity_type'],
                 compose_type=compose_type
             )
-
         ########### register mask in backbone modules ##################
         # for name, module in model.named_modules():
         # for name, module in model.module.backbone.conv1.named_modules():

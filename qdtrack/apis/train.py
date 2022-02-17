@@ -270,16 +270,21 @@ class EpochBasedRunnerDrop(BaseRunner):
         for i, data_batch in enumerate(self.data_loader):
 
             # bp()
-            if data_batch['img_metas'].data[0][0]['drop_info']['meta']['ratio'] > 0:
-                mask = apply_dropping(data_batch, [],
-                    locations_pre=data_batch['img_metas'].data[0][0]['drop_info']['locations'],
-                    areas_pre=data_batch['img_metas'].data[0][0]['drop_info']['areas'],
-                    complexity_pre=data_batch['img_metas'].data[0][0]['drop_info']['complexities'],
-                    grid_h=data_batch['img_metas'].data[0][0]['drop_info']['meta']['grid_h'],
-                    grid_w=data_batch['img_metas'].data[0][0]['drop_info']['meta']['grid_w'],
-                    ratio=data_batch['img_metas'].data[0][0]['drop_info']['meta']['ratio'],
-                    complexity_type=data_batch['img_metas'].data[0][0]['drop_info']['meta']['prev_frame_complexity_type']
-                )
+            if 'drop_info' in data_batch['img_metas'].data[0][0].keys():
+                if data_batch['img_metas'].data[0][0]['drop_info']['meta']['ratio'] > 0:
+                    mask = apply_dropping(data_batch, [],
+                        locations_pre=data_batch['img_metas'].data[0][0]['drop_info']['locations'],
+                        areas_pre=data_batch['img_metas'].data[0][0]['drop_info']['areas'],
+                        complexity_pre=data_batch['img_metas'].data[0][0]['drop_info']['complexities'],
+                        grid_h=data_batch['img_metas'].data[0][0]['drop_info']['meta']['grid_h'],
+                        grid_w=data_batch['img_metas'].data[0][0]['drop_info']['meta']['grid_w'],
+                        ratio=data_batch['img_metas'].data[0][0]['drop_info']['meta']['ratio'],
+                        complexity_type=data_batch['img_metas'].data[0][0]['drop_info']['meta']['prev_frame_complexity_type']
+                    )
+            else:
+                img = data_batch["img"].data[0]
+                mask = torch.ones(img.shape[2], img.shape[3]).unsqueeze(0).unsqueeze(0).to(img.device).cuda()
+                print("all one mask:", torch.mean(mask))
             ########### register mask in backbone modules ##################
             # for name, module in model.named_modules():
             # for name, module in model.module.backbone.conv1.named_modules():
