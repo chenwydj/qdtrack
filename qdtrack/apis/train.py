@@ -284,7 +284,7 @@ class EpochBasedRunnerDrop(BaseRunner):
             else:
                 img = data_batch["img"].data[0]
                 mask = torch.ones(img.shape[2], img.shape[3]).unsqueeze(0).unsqueeze(0).to(img.device).cuda()
-                print("all one mask:", torch.mean(mask))
+                print(f"[Warning]!: all one mask:", torch.mean(mask))
             ########### register mask in backbone modules ##################
             # for name, module in model.named_modules():
             # for name, module in model.module.backbone.conv1.named_modules():

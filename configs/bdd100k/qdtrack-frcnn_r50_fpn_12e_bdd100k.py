@@ -85,6 +85,7 @@ data = dict(
             img_prefix=data_root + 'images/100k/train/',
             pipeline=train_pipeline)
     ],
+    # tempNew-remain0.6-best.json  box_track_val_cocofmt.json
     val=dict(
         type=dataset_type,
         ann_file=data_root + 'labels/box_track_20/box_track_val_cocofmt.json',
@@ -116,12 +117,12 @@ log_config = dict(
     ])
 # yapf:enable
 # runtime settings
-total_epochs = 16
+total_epochs = 24
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
 load_from = None
 # resume_from = None
-resume_from = "/ssd1/chenwy/dataset/bdd100k/qdtrack-frcnn_r50_fpn_12e_bdd100k-13328aed.pth"
-# resume_from = "/home/zhiwen/projects/qdtrack/work_dirs/qdtrack-frcnn_r50_fpn_12e_bdd100k_tridesign_resnet50HW/epoch_13.pth"
+# resume_from = "/ssd1/chenwy/dataset/bdd100k/qdtrack-frcnn_r50_fpn_12e_bdd100k-13328aed.pth"
+resume_from = "/home/zhiwen/projects/qdtrack/work_dirs/qdtrack-frcnn_r50_fpn_12e_bdd100k/epoch_13.pth"
 workflow = [('train', 1)]
 evaluation = dict(metric=['bbox', 'track'], interval=1)
