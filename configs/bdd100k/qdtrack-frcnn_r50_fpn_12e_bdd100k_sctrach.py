@@ -68,7 +68,7 @@ test_pipeline = [
 ]
 data = dict(
     samples_per_gpu=8,
-    workers_per_gpu=8,
+    workers_per_gpu=2,
     train=[
         dict(
             type=dataset_type,
@@ -109,7 +109,7 @@ lr_config = dict(
 checkpoint_config = dict(interval=1)
 # yapf:disable
 log_config = dict(
-    interval=200,
+    interval=50,
     hooks=[
         dict(type='TextLoggerHook'),
         # dict(type='TensorboardLoggerHook')
@@ -119,9 +119,9 @@ log_config = dict(
 total_epochs = 16
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-load_from = None
-# resume_from = None
-resume_from = "/ssd1/chenwy/dataset/bdd100k/qdtrack-frcnn_r50_fpn_12e_bdd100k-13328aed.pth"
+# load_from = None
+resume_from = None
+load_from = "/ssd1/chenwy/dataset/bdd100k/qdtrack-frcnn_r50_fpn_12e_bdd100k-13328aed.pth"
 # resume_from = "/home/zhiwen/projects/qdtrack/work_dirs/qdtrack-frcnn_r50_fpn_12e_bdd100k_tridesign_resnet50HW/epoch_13.pth"
 workflow = [('train', 1)]
 evaluation = dict(metric=['bbox', 'track'], interval=1)
