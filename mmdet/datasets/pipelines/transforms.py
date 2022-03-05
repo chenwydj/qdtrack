@@ -10,6 +10,7 @@ from numpy import random
 from mmdet.core import PolygonMasks
 from mmdet.core.evaluation.bbox_overlaps import bbox_overlaps
 from ..builder import PIPELINES
+from pdb import set_trace as st
 
 try:
     from imagecorruptions import corrupt
@@ -683,6 +684,7 @@ class DropPatch:
         else:
             gray_images = kornia.color.bgr_to_grayscale(input_tensor)
         sobeled_images = kornia.filters.sobel(gray_images)
+        # sobeled_images = kornia.filters.laplacian(gray_images, kernel_size=5)
         complexity = sobeled_images.mean(dim=(2,3))
         complexity = complexity.squeeze()
         return complexity

@@ -122,7 +122,7 @@ dist_params = dict(backend='nccl')
 log_level = 'INFO'
 load_from = None
 # resume_from = None
-# resume_from = "/ssd1/chenwy/dataset/bdd100k/qdtrack-frcnn_r50_fpn_12e_bdd100k-13328aed.pth"
-resume_from = "/home/zhiwen/projects/qdtrack/work_dirs/qdtrack-frcnn_r50_fpn_12e_bdd100k/epoch_13.pth"
+resume_from = "/ssd1/chenwy/dataset/bdd100k/qdtrack-frcnn_r50_fpn_12e_bdd100k-13328aed.pth"
+# resume_from = "/home/zhiwen/projects/qdtrack/work_dirs/qdtrack-frcnn_r50_fpn_12e_bdd100k/epoch_13.pth"
 workflow = [('train', 1)]
 evaluation = dict(metric=['bbox', 'track'], interval=1)

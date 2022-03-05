@@ -12,7 +12,7 @@ import torch
 from torch import nn
 import torch.distributed as dist
 from mmcv.runner import get_dist_info
-from pdb import set_trace as bp
+from pdb import set_trace as st
 import cv2
 
 def single_gpu_test_vanilla(model,
@@ -332,6 +332,7 @@ def single_gpu_test(model,
 
         with torch.no_grad():
             result = model(return_loss=False, rescale=True, **data)
+        st()
         # if i == 10:
         #     save_fig(data, "img_dropped_compMulti.png")
         #     exit(0)
