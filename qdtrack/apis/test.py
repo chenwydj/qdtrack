@@ -261,7 +261,6 @@ def apply_dropping(data, results, locations_pre=None, areas_pre=None, complexity
         img[:, 1, start_h:end_h, start_w:end_w] = -0.456/0.224
         img[:, 2, start_h:end_h, start_w:end_w] = -0.406/0.225
         mask[start_h:end_h, start_w:end_w] = 0
-    
     return mask.unsqueeze(0).unsqueeze(0).cuda()
 
 
@@ -332,7 +331,18 @@ def single_gpu_test(model,
 
         with torch.no_grad():
             result = model(return_loss=False, rescale=True, **data)
-        st()
+        # feat0 = features_collector0.outputs[0].detach().cpu().numpy()
+        # feat1 = features_collector1.outputs[0].detach().cpu().numpy()
+        # feat2 = features_collector2.outputs[0].detach().cpu().numpy()
+        # feat3 = features_collector3.outputs[0].detach().cpu().numpy()
+        # feat4 = features_collector4.outputs[0].detach().cpu().numpy()
+        # np.save("/home/zhiwen/projects/qdtrack/work_dirs/vis/feat0.npy", feat0)
+        # np.save("/home/zhiwen/projects/qdtrack/work_dirs/vis/feat1.npy", feat1)
+        # np.save("/home/zhiwen/projects/qdtrack/work_dirs/vis/feat2.npy", feat2)
+        # np.save("/home/zhiwen/projects/qdtrack/work_dirs/vis/feat3.npy", feat3)
+        # np.save("/home/zhiwen/projects/qdtrack/work_dirs/vis/feat4.npy", feat4)
+        # st()
+
         # if i == 10:
         #     save_fig(data, "img_dropped_compMulti.png")
         #     exit(0)

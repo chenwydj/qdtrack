@@ -729,6 +729,7 @@ class DropPatch:
     def complexity_zeros(self, results, avgpool=False):
         for key in results.get('img_fields', ['img']):
             image = copy.deepcopy(results[key])
+        # cv2.imwrite("work_dirs/vis/img.png", image)
         img_h, img_w, _ = image.shape
         locations_sorted, areas_sorted, locations, areas, complexities = self.scan_complexity(image, avgpool=True)
         assert sum(areas_sorted) == img_h*img_w, "sum(areas_sorted) = %d v.s. img_h*img_w = %d"%(sum(areas_sorted), img_h*img_w)
