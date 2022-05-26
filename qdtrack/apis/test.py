@@ -70,6 +70,16 @@ def mask_feature(module, input, output):
     return output * mask
 
 
+def quant_mask_feature(module, input, output):
+    quantization = 511
+    max_val = torch.max(output)
+    min_val = torch.min(output)
+    tmp = torch.round((output - min_val) / (max_val - min_val) * quantization)
+    output = tmp / quantization * (max_val - min_val) + min_val
+    _, _, h, w = output.shape
+    mask = torch.nn.functional.interpolate(module.mask, size=(h, w))
+    return output * mask
+
 from torchvision import transforms
 inv_normalizer = transforms.Normalize(
     mean=[-0.485/0.229, -0.456/0.224, -0.406/0.225],
@@ -274,15 +284,15 @@ def single_gpu_test(model,
     
     print(f"[Compose Type]: {compose_type}")
     ################ register hood in backbone modules to drop patch on features ####################
-    model.module.backbone.conv1.register_forward_hook(mask_feature)
+    model.module.backbone.conv1.register_forward_hook(quant_mask_feature)
     for name, module in model.module.backbone.layer1.named_modules():
-        module.register_forward_hook(mask_feature)
+        module.register_forward_hook(quant_mask_feature)
     for name, module in model.module.backbone.layer2.named_modules():
-        module.register_forward_hook(mask_feature)
+        module.register_forward_hook(quant_mask_feature)
     for name, module in model.module.backbone.layer3.named_modules():
-        module.register_forward_hook(mask_feature)
+        module.register_forward_hook(quant_mask_feature)
     for name, module in model.module.backbone.layer4.named_modules():
-        module.register_forward_hook(mask_feature)
+        module.register_forward_hook(quant_mask_feature)
     #################################################################################################
 
     # features_collector0 = Features()
