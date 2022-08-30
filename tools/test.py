@@ -103,6 +103,12 @@ def parse_args():
         default='none',
         help='job launcher')
     parser.add_argument('--local_rank', type=int, default=0)
+    parser.add_argument('--quant_weight', action='store_true', default=False)
+    parser.add_argument('--quantization', default='b', type=str,
+                        help="balanced / nonbalanced",
+                        choices=['b', 'nb'])
+    parser.add_argument(
+        '--q', default=8, type=int, help='quantization number {b: 7, 15; nb: 8, 16}')
     args = parser.parse_args()
     if 'LOCAL_RANK' not in os.environ:
         os.environ['LOCAL_RANK'] = str(args.local_rank)
@@ -174,6 +180,23 @@ def main():
         model.CLASSES = checkpoint['meta']['CLASSES']
     else:
         model.CLASSES = dataset.CLASSES
+
+    if args.quant_weight:
+        # Quantization
+        if args.quantization == 'b':
+            print(f'> Quantizing model weight.....')
+            quantization = 2**args.q -1
+            quantDict = {}
+            for keys in model.state_dict().keys():
+                quantDict[keys] = {}
+                quantDict[keys]['max'] = torch.max(model.state_dict()[keys])
+                quantDict[keys]['min'] = torch.min(model.state_dict()[keys])
+
+            state_dict = model.state_dict()
+            for keys in state_dict.keys():
+                normValue = max(torch.abs(quantDict[keys]['max']), torch.abs(quantDict[keys]['min']))
+                state_dict[keys] = torch.round(state_dict[keys] * quantization / normValue) / quantization * normValue
+            model.load_state_dict(state_dict)
 
     # Pruning
     if args.prune_method == 'layer':
