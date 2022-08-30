@@ -86,14 +86,16 @@ data = dict(
             pipeline=train_pipeline)
     ],
     # tempNew-remain0.6-best.json  box_track_val_cocofmt.json
+    # quantized framedrop: 0.6frame-quantize-balance.json
+    # 21 images: 0.6frame-quantize-balance-leave100.json
     val=dict(
         type=dataset_type,
-        ann_file=data_root + 'labels/box_track_20/box_track_val_cocofmt.json',
+        ann_file=data_root + 'labels/box_track_20/0.6frame-quantize-balance.json',
         img_prefix=data_root + 'images/track/val/',
         pipeline=test_pipeline),
     test=dict(
         type=dataset_type,
-        ann_file=data_root + 'labels/box_track_20/box_track_val_cocofmt.json',
+        ann_file=data_root + 'labels/box_track_20/0.6frame-quantize-balance.json',
         img_prefix=data_root + 'images/track/val/',
         pipeline=test_pipeline))
 # optimizer

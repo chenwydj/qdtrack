@@ -71,11 +71,29 @@ def mask_feature(module, input, output):
 
 
 def quant_mask_feature(module, input, output):
-    quantization = 511
+    quantization = 127
     max_val = torch.max(output)
     min_val = torch.min(output)
     tmp = torch.round((output - min_val) / (max_val - min_val) * quantization)
     output = tmp / quantization * (max_val - min_val) + min_val
+    _, _, h, w = output.shape
+    mask = torch.nn.functional.interpolate(module.mask, size=(h, w))
+    return output * mask
+
+
+def quant0822(module, input, output):
+    intb, decb = 6,1
+    sign = torch.sign(output)
+    _output = torch.abs(output)
+    intPart = _output // 1
+    decPart = _output % 1
+    # truncate in pytorch
+    # if intPart < 0:
+    #     intPart += 1
+    if intb != 0 :
+        intPart = torch.clip(intPart, -2**intb+1, 2**intb-1)
+    decPart = torch.round(decPart * (2**decb)) / (2**decb)
+    output = (intPart + decPart) * sign
     _, _, h, w = output.shape
     mask = torch.nn.functional.interpolate(module.mask, size=(h, w))
     return output * mask
@@ -215,7 +233,7 @@ def merge_complexities(complexities=None, complexities_pre=None, merge=True, nor
         return complexities_composed
 
 
-def apply_dropping(data, results, locations_pre=None, areas_pre=None, complexity_pre=None, grid_h=GRID_H, grid_w=GRID_W, ratio=RATIO, 
+def apply_dropping(data, results, locations_pre=None, areas_pre=None, complexity_pre=None, grid_h=GRID_H, grid_w=GRID_W, ratio=RATIO,
     complexity_type="intersection", compose_type='bottom_up'):
     """
     data: dict of 'img' and 'img_metas' for current frame
@@ -278,10 +296,10 @@ def single_gpu_test(model,
                     data_loader,
                     show=False,
                     out_dir=None,
-                    show_score_thr=0.3, 
+                    show_score_thr=0.3,
                     compose_type='bottom_up'):
     model.eval()
-    
+
     print(f"[Compose Type]: {compose_type}")
     ################ register hood in backbone modules to drop patch on features ####################
     model.module.backbone.conv1.register_forward_hook(quant_mask_feature)
@@ -293,6 +311,20 @@ def single_gpu_test(model,
         module.register_forward_hook(quant_mask_feature)
     for name, module in model.module.backbone.layer4.named_modules():
         module.register_forward_hook(quant_mask_feature)
+
+    # mask and quantize for: neck
+    for name, module in model.module.neck.named_modules():
+        module.register_forward_hook(quant_mask_feature)
+    # mask and quantize for: rpn_head
+    # for name, module in model.module.rpn_head.named_modules():
+    #     module.register_forward_hook(quant_mask_feature)
+    # # mask and quantize for: roi_head
+    # for name, module in model.module.roi_head.named_modules():
+    #     module.register_forward_hook(quant_mask_feature)
+    # # mask and quantize for: roi_head
+    # for name, module in model.module.roi_head.named_modules():
+    #     print(f'> name: {name}')
+    #     module.register_forward_hook(quant_mask_feature)
     #################################################################################################
 
     # features_collector0 = Features()
