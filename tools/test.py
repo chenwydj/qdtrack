@@ -205,7 +205,7 @@ def main():
                 zero = torch.zeros_like(state_dict[keys])
                 state_dict[keys] = torch.where(state_dict[keys] > 1, zero, state_dict[keys])
                 state_dict[keys] = torch.where(state_dict[keys] < -1, zero, state_dict[keys])
-                state_dict[keys] = torch.round(state_dict[keys] * quantization) / quantization
+                state_dict[keys] = torch.round(torch.tensor(state_dict[keys], dtype=torch.float) * quantization, ) / quantization
 
             model.load_state_dict(state_dict)
 
