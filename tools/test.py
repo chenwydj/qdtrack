@@ -106,7 +106,7 @@ def parse_args():
     parser.add_argument('--quant_weight', action='store_true', default=False)
     parser.add_argument('--quantization', default='b', type=str,
                         help="balanced / nonbalanced",
-                        choices=['b', 'nb'])
+                        choices=['b', 'nb', 'fg'])
     parser.add_argument(
         '--q', default=8, type=int, help='quantization number {b: 7, 15; nb: 8, 16}')
     args = parser.parse_args()
@@ -196,6 +196,17 @@ def main():
             for keys in state_dict.keys():
                 normValue = max(torch.abs(quantDict[keys]['max']), torch.abs(quantDict[keys]['min']))
                 state_dict[keys] = torch.round(state_dict[keys] * quantization / normValue) / quantization * normValue
+            model.load_state_dict(state_dict)
+        elif args.quantization == 'fg':
+            quantization = 2**(args.q-2) - 1
+
+            state_dict = model.state_dict()
+            for keys in state_dict.keys():
+                zero = torch.zeros_like(state_dict[keys])
+                state_dict[keys] = torch.where(state_dict[keys] > 1, zero, state_dict[keys])
+                state_dict[keys] = torch.where(state_dict[keys] < -1, zero, state_dict[keys])
+                state_dict[keys] = torch.round(state_dict[keys] * quantization) / quantization
+
             model.load_state_dict(state_dict)
 
     # Pruning

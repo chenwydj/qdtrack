@@ -82,7 +82,7 @@ def quant_mask_feature(module, input, output):
 
 
 def quant0822(module, input, output):
-    intb, decb = 6,1
+    intb, decb = 3, 4
     sign = torch.sign(output)
     _output = torch.abs(output)
     intPart = _output // 1
@@ -302,19 +302,19 @@ def single_gpu_test(model,
 
     print(f"[Compose Type]: {compose_type}")
     ################ register hood in backbone modules to drop patch on features ####################
-    model.module.backbone.conv1.register_forward_hook(quant_mask_feature)
+    model.module.backbone.conv1.register_forward_hook(quant0822)
     for name, module in model.module.backbone.layer1.named_modules():
-        module.register_forward_hook(quant_mask_feature)
+        module.register_forward_hook(quant0822)
     for name, module in model.module.backbone.layer2.named_modules():
-        module.register_forward_hook(quant_mask_feature)
+        module.register_forward_hook(quant0822)
     for name, module in model.module.backbone.layer3.named_modules():
-        module.register_forward_hook(quant_mask_feature)
+        module.register_forward_hook(quant0822)
     for name, module in model.module.backbone.layer4.named_modules():
-        module.register_forward_hook(quant_mask_feature)
+        module.register_forward_hook(quant0822)
 
     # mask and quantize for: neck
-    for name, module in model.module.neck.named_modules():
-        module.register_forward_hook(quant_mask_feature)
+    # for name, module in model.module.neck.named_modules():
+    #     module.register_forward_hook(quant_mask_feature)
     # mask and quantize for: rpn_head
     # for name, module in model.module.rpn_head.named_modules():
     #     module.register_forward_hook(quant_mask_feature)
