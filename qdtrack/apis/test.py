@@ -1,3 +1,4 @@
+from curses import A_ALTCHARSET
 import os.path as osp
 import pdb
 import shutil
@@ -13,6 +14,7 @@ from torch import nn
 import torch.distributed as dist
 from mmcv.runner import get_dist_info
 from pdb import set_trace as st
+from qdtrack.core.utils import fp_quantization
 import cv2
 
 def single_gpu_test_vanilla(model,
@@ -77,12 +79,41 @@ def quant_mask_feature(module, input, output):
     tmp = torch.round((output - min_val) / (max_val - min_val) * quantization)
     output = tmp / quantization * (max_val - min_val) + min_val
     _, _, h, w = output.shape
-    mask = torch.nn.functional.interpolate(module.mask, size=(h, w))
-    return output * mask
+    if 'mask' in dir(module):
+        mask = torch.nn.functional.interpolate(module.mask, size=(h, w))
+        return output * mask
+    else:
+        return output
+
+def quant_mask_feature_adaptive(module, input, output):
+    temp_max = torch.max(output)
+    temp_min = torch.min(output)
+    temp = temp_max
+    # print(f'>> before unique: {len(torch.unique(output))}, max_val: {temp}')
+    int_bit = 0
+    a = 999
+    while a != 0:
+        a = temp // 2
+        if a > 0:
+            int_bit = int_bit + 1
+        temp = temp / 2.0
+    int_bit = max(3, int_bit)
+    dec_bit = 8 - 1 - int_bit
+    output = fp_quantization(output, int_bit, dec_bit)
+    # print(f'>> after unique: {len(torch.unique(output))}, int_bit: {int_bit}, dec_bit: {dec_bit}')
+    _, _, h, w = output.shape
+    if 'mask' in dir(module):
+        mask = torch.nn.functional.interpolate(module.mask, size=(h, w))
+        return output * mask
+    else:
+        return output
 
 
-def quant0822(module, input, output):
-    intb, decb = 3, 4
+def quant0822(module, input, output, args=None):
+    if args is not None:
+        intb, decb = args.int, args.dec
+    else:
+        intb, decb = 3, 12
     sign = torch.sign(output)
     _output = torch.abs(output)
     intPart = _output // 1
@@ -95,8 +126,27 @@ def quant0822(module, input, output):
     decPart = torch.round(decPart * (2**decb)) / (2**decb)
     output = (intPart + decPart) * sign
     _, _, h, w = output.shape
-    mask = torch.nn.functional.interpolate(module.mask, size=(h, w))
-    return output * mask
+    if 'mask' in dir(module):
+        mask = torch.nn.functional.interpolate(module.mask, size=(h, w))
+        return output * mask
+    else:
+        return output
+
+
+def quant0822_data(x, args=None):
+    if args is not None:
+        intb, decb = args.int, args.dec
+    else:
+        intb, decb = 2, 5
+    sign = torch.sign(x)
+    x = torch.abs(x)
+    intPart = x // 1
+    decPart = x % 1
+    if intb != 0 :
+        intPart = torch.clip(intPart, -2**intb+1, 2**intb-1)
+    decPart = torch.round(decPart * (2**decb)) / (2**decb)
+    output = (intPart + decPart) * sign
+    return output
 
 from torchvision import transforms
 inv_normalizer = transforms.Normalize(
@@ -297,34 +347,47 @@ def single_gpu_test(model,
                     show=False,
                     out_dir=None,
                     show_score_thr=0.3,
-                    compose_type='bottom_up'):
+                    compose_type='bottom_up',
+                    args=None):
     model.eval()
 
-    print(f"[Compose Type]: {compose_type}")
+    print(f"[Compose Type]: {compose_type}, [quantize activation]: {args.quant_act}")
     ################ register hood in backbone modules to drop patch on features ####################
-    model.module.backbone.conv1.register_forward_hook(quant0822)
-    for name, module in model.module.backbone.layer1.named_modules():
-        module.register_forward_hook(quant0822)
-    for name, module in model.module.backbone.layer2.named_modules():
-        module.register_forward_hook(quant0822)
-    for name, module in model.module.backbone.layer3.named_modules():
-        module.register_forward_hook(quant0822)
-    for name, module in model.module.backbone.layer4.named_modules():
-        module.register_forward_hook(quant0822)
+    if args.quant_act:
+        model.module.backbone.conv1.register_forward_hook(quant_mask_feature_adaptive)
+        for name, module in model.module.backbone.layer1.named_modules():
+            module.register_forward_hook(quant_mask_feature_adaptive)
+        for name, module in model.module.backbone.layer2.named_modules():
+            module.register_forward_hook(quant_mask_feature_adaptive)
+        for name, module in model.module.backbone.layer3.named_modules():
+            module.register_forward_hook(quant_mask_feature_adaptive)
+        for name, module in model.module.backbone.layer4.named_modules():
+            module.register_forward_hook(quant_mask_feature_adaptive)
 
-    # mask and quantize for: neck
-    # for name, module in model.module.neck.named_modules():
-    #     module.register_forward_hook(quant_mask_feature)
-    # mask and quantize for: rpn_head
-    # for name, module in model.module.rpn_head.named_modules():
-    #     module.register_forward_hook(quant_mask_feature)
-    # # mask and quantize for: roi_head
-    # for name, module in model.module.roi_head.named_modules():
-    #     module.register_forward_hook(quant_mask_feature)
-    # # mask and quantize for: roi_head
-    # for name, module in model.module.roi_head.named_modules():
-    #     print(f'> name: {name}')
-    #     module.register_forward_hook(quant_mask_feature)
+        # mask and quantize for: neck
+        # for name, module in model.module.neck.named_modules():
+        #     module.register_forward_hook(quant0822)
+        # mask and quantize for: rpn_head
+        # for name, module in model.module.rpn_head.named_modules():
+        #     module.register_forward_hook(quant_mask_feature)
+        # # mask and quantize for: roi_head
+        # for name, module in model.module.roi_head.named_modules():
+        #     module.register_forward_hook(quant_mask_feature)
+        # # mask and quantize for: roi_head
+        # for name, module in model.module.roi_head.named_modules():
+        #     print(f'> name: {name}')
+        #     module.register_forward_hook(quant_mask_feature)
+    else:
+        model.module.backbone.conv1.register_forward_hook(mask_feature)
+        for name, module in model.module.backbone.layer1.named_modules():
+            module.register_forward_hook(mask_feature)
+        for name, module in model.module.backbone.layer2.named_modules():
+            module.register_forward_hook(mask_feature)
+        for name, module in model.module.backbone.layer3.named_modules():
+            module.register_forward_hook(mask_feature)
+        for name, module in model.module.backbone.layer4.named_modules():
+            module.register_forward_hook(mask_feature)
+
     #################################################################################################
 
     # features_collector0 = Features()
@@ -343,7 +406,9 @@ def single_gpu_test(model,
     dataset = data_loader.dataset
     prog_bar = mmcv.ProgressBar(len(dataset))
     for i, data in enumerate(data_loader):
-
+        # quantize data
+        if args.quant_act:
+            data['img'][0] = quant0822_data(data['img'][0])
         # data = drop_by_bbox(data, result) # drop by bbox predicted from t-1 frame
         if data['img_metas'][0].data[0][0]['drop_info']['meta']['ratio'] > 0:
             mask = apply_dropping(data, result,

@@ -15,8 +15,9 @@ from mmcv.runner import get_dist_info, init_dist, load_checkpoint
 from mmdet.datasets import build_dataset
 import torch.nn.utils.prune as prune
 import torch.nn as nn
+from qdtrack.core.utils import fp_quantization
 
-from pdb import set_trace as bp
+from pdb import set_trace as st
 
 
 def prune_model_l1_unstructured(model, layer_type, proportion):
@@ -104,11 +105,16 @@ def parse_args():
         help='job launcher')
     parser.add_argument('--local_rank', type=int, default=0)
     parser.add_argument('--quant_weight', action='store_true', default=False)
+    parser.add_argument('--quant_act', action='store_true', default=False)
     parser.add_argument('--quantization', default='b', type=str,
                         help="balanced / nonbalanced",
-                        choices=['b', 'nb', 'fg'])
+                        choices=['b', 'nb', 'fg', 'lfp'])
     parser.add_argument(
         '--q', default=8, type=int, help='quantization number {b: 7, 15; nb: 8, 16}')
+    parser.add_argument(
+        '--int', default=3, type=int, help='quantization number {1}')
+    parser.add_argument(
+        '--dec', default=12, type=int, help='quantization number {6， 14}')
     args = parser.parse_args()
     if 'LOCAL_RANK' not in os.environ:
         os.environ['LOCAL_RANK'] = str(args.local_rank)
@@ -198,16 +204,31 @@ def main():
                 state_dict[keys] = torch.round(state_dict[keys] * quantization / normValue) / quantization * normValue
             model.load_state_dict(state_dict)
         elif args.quantization == 'fg':
-            quantization = 2**(args.q-2) - 1
-
             state_dict = model.state_dict()
             for keys in state_dict.keys():
-                zero = torch.zeros_like(state_dict[keys])
-                state_dict[keys] = torch.where(state_dict[keys] > 1, zero, state_dict[keys])
-                state_dict[keys] = torch.where(state_dict[keys] < -1, zero, state_dict[keys])
-                state_dict[keys] = torch.round(torch.tensor(state_dict[keys], dtype=torch.float) * quantization, ) / quantization
-
+                state_dict[keys] = fp_quantization(state_dict[keys], args.int, args.dec)
             model.load_state_dict(state_dict)
+
+        elif args.quantization == 'lfp':
+            state_dict = model.state_dict()
+            bit_choice = []
+            for keys in state_dict.keys():
+                temp_max = torch.max(model.state_dict()[keys])
+                temp_min = torch.min(model.state_dict()[keys])
+
+                temp = temp_max
+
+                int_bit = 0
+                a = 999
+                while a != 0:
+                    a = temp // 2
+                    if a > 0:
+                        int_bit = int_bit + 1
+                    temp = temp / 2.0
+                dec_bit = args.q - 1 - int_bit
+
+                bit_choice += [{"Params":keys, "max": temp_max, "min":temp_min, "int_bit":int_bit, "dec_bit":dec_bit}]
+                state_dict[keys] = fp_quantization(state_dict[keys], int_bit, dec_bit)
 
     # Pruning
     if args.prune_method == 'layer':
@@ -224,7 +245,7 @@ def main():
                                   args.show_score_thr)
         else:
             outputs = single_gpu_test(model, data_loader, args.show, args.show_dir,
-                                    args.show_score_thr, args.compose_type)
+                                    args.show_score_thr, args.compose_type, args=args)
     else:
         model = MMDistributedDataParallel(
             model.cuda(),

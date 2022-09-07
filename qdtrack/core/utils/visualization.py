@@ -5,10 +5,20 @@ import cv2
 import matplotlib
 import matplotlib.pyplot as plt
 import mmcv
+import torch
 import numpy as np
 import seaborn as sns
 from matplotlib.patches import Rectangle
 from mmcv.utils import mkdir_or_exist
+
+def fp_quantization(x, intb, decb):
+    x = x - (x < 0).int()
+    intPart = x // 1
+    decPart = x % 1
+    if intb != 0:
+        intPart = torch.clip(intPart, -2 ** intb, 2 ** intb - 1)
+    decPart = torch.round(torch.tensor(decPart, dtype=torch.float) * (2 ** decb)) / (2 ** decb)
+    return intPart + decPart
 
 
 def random_color(seed):
