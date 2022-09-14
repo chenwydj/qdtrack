@@ -86,28 +86,49 @@ def quant_mask_feature(module, input, output):
         return output
 
 def quant_mask_feature_adaptive(module, input, output):
-    temp_max = torch.max(output)
-    temp_min = torch.min(output)
-    temp = temp_max
-    # print(f'>> before unique: {len(torch.unique(output))}, max_val: {temp}')
-    int_bit = 0
-    a = 999
-    while a != 0:
-        a = temp // 2
-        if a > 0:
-            int_bit = int_bit + 1
-        temp = temp / 2.0
-    int_bit = max(3, int_bit)
-    dec_bit = 8 - 1 - int_bit
-    output = fp_quantization(output, int_bit, dec_bit)
-    # print(f'>> after unique: {len(torch.unique(output))}, int_bit: {int_bit}, dec_bit: {dec_bit}')
-    _, _, h, w = output.shape
-    if 'mask' in dir(module):
-        mask = torch.nn.functional.interpolate(module.mask, size=(h, w))
-        return output * mask
+    def quant(output):
+        temp_max = torch.max(output)
+        temp_min = torch.min(output)
+        temp = temp_max
+        # print(f'>> before unique: {len(torch.unique(output))}, max_val: {temp}')
+        int_bit = 0
+        a = 999
+        while a != 0:
+            a = temp // 2
+            if a > 0:
+                int_bit = int_bit + 1
+            temp = temp / 2.0
+        int_bit = max(4, int_bit)
+        dec_bit = 16 - 1 - int_bit
+        output = fp_quantization(output, int_bit, dec_bit)
+        # print(f'>> after unique: {len(torch.unique(output))}, int_bit: {int_bit}, dec_bit: {dec_bit}')
+        if len(output.shape) == 4:
+            _, _, h, w = output.shape
+            if 'mask' in dir(module):
+                mask = torch.nn.functional.interpolate(module.mask, size=(h, w))
+                return output * mask
+            else:
+                return output
+        else:
+            return output
+    if isinstance(output, tuple):
+        output_new = []
+        for x in output:
+            try:
+                output_new.append(quant(x))
+            except:
+                st()
+        return tuple(output_new)
+    elif isinstance(output, list):
+        output_new = []
+        for x in output:
+            try:
+                output_new.append(quant(x))
+            except:
+                st()
+        return output_new
     else:
-        return output
-
+        return quant(output)
 
 def quant0822(module, input, output, args=None):
     if args is not None:
@@ -365,18 +386,15 @@ def single_gpu_test(model,
             module.register_forward_hook(quant_mask_feature_adaptive)
 
         # mask and quantize for: neck
-        # for name, module in model.module.neck.named_modules():
-        #     module.register_forward_hook(quant0822)
+        for name, module in model.module.neck.named_modules():
+            module.register_forward_hook(quant_mask_feature_adaptive)
         # mask and quantize for: rpn_head
         # for name, module in model.module.rpn_head.named_modules():
-        #     module.register_forward_hook(quant_mask_feature)
+        #     module.register_forward_hook(quant_mask_feature_adaptive)
         # # mask and quantize for: roi_head
-        # for name, module in model.module.roi_head.named_modules():
-        #     module.register_forward_hook(quant_mask_feature)
-        # # mask and quantize for: roi_head
-        # for name, module in model.module.roi_head.named_modules():
-        #     print(f'> name: {name}')
-        #     module.register_forward_hook(quant_mask_feature)
+        for name, module in model.module.roi_head.named_modules():
+            module.register_forward_hook(quant_mask_feature_adaptive)
+
     else:
         model.module.backbone.conv1.register_forward_hook(mask_feature)
         for name, module in model.module.backbone.layer1.named_modules():
